@@ -1,16 +1,100 @@
-# haji_racing
+# Haji Racing - 赛车性能管理系统
 
-A new Flutter project.
+一个基于Flutter开发的赛车性能管理应用，采用黑灰色酷炫风格设计。
 
-## Getting Started
+## 功能特性
 
-This project is a starting point for a Flutter application.
+### 1. 主页界面
+- 展示主车辆信息
+- 显示车辆名称、虚拟形象、马力、车重、轮胎宽度、等级
+- 实时显示PP分数
+- 快速访问车辆列表
 
-A few resources to get you started if this is your first Flutter project:
+### 2. 车辆列表
+- 展示所有车辆卡片
+- 每辆车显示关键参数和PP分数
+- 支持新增车辆
+- 点击进入车辆详情
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+### 3. 添加车辆
+- 输入车辆名称
+- 滑动调节马力（100-2000 HP）
+- 滑动调节车重（500-3000 KG）
+- 滑动调节轮胎宽度（15-35 CM）
+- 选择轮胎等级（SH硬胎/SS软胎）
+- 实时预览PP分数
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+### 4. 车辆详情页
+- 虚拟车辆形象居中展示
+- 马力和车重显示在车辆中间
+- 轮胎宽度和等级显示在轮胎位置
+- 编辑所有车辆参数
+- 底部实时显示PP分数
+- 支持删除车辆
+
+## PP分计算逻辑
+
+```
+PP ≈ [马力(hp) × 1000 / 车重(kg)] × 基数 + (轮胎宽度（4条总和） - 20) × 2 + 轮胎等级加成
+```
+
+**参数说明：**
+- 基数：50
+- SH（硬胎，Sport Hard）：+80~120（取平均值100）
+- SS（软胎，Sport Soft）：+160~220（取平均值190）
+
+## 技术栈
+
+- **Flutter**: 跨平台移动应用框架
+- **SQLite**: 本地数据存储（sqflite）
+- **Material Design 3**: 现代化UI设计
+- **暗黑主题**: 黑灰色酷炫风格
+
+## 项目结构
+
+```
+lib/
+├── main.dart                 # 应用入口
+├── models/
+│   └── car.dart             # 车辆数据模型
+├── database/
+│   └── database_helper.dart # SQLite数据库帮助类
+└── pages/
+    ├── home_page.dart       # 主页
+    ├── car_list_page.dart   # 车辆列表页
+    ├── add_car_page.dart    # 添加车辆页
+    └── car_detail_page.dart # 车辆详情页
+```
+
+## 运行项目
+
+```bash
+# 安装依赖
+flutter pub get
+
+# 运行应用
+flutter run
+```
+
+## UI设计特点
+
+- **配色方案**: 黑灰色背景 (#1A1A1A) + 橙色强调色 (#FF3D00)
+- **渐变效果**: 使用线性渐变增强视觉层次
+- **阴影效果**: 橙色发光阴影营造科技感
+- **圆角设计**: 统一的圆角风格（10-20px）
+- **响应式布局**: 适配不同屏幕尺寸
+
+## 数据存储
+
+使用SQLite本地数据库存储车辆信息：
+- 数据库名称：cars.db
+- 表名：cars
+- 字段：id, name, horsepower, weight, tireWidth, tireType, avatarUrl
+
+## 开发说明
+
+1. 所有页面采用统一的暗黑主题
+2. 使用StatefulWidget管理页面状态
+3. 参数修改后实时更新PP分数显示
+4. 支持车辆的增删改查操作
+5. 数据持久化存储在本地SQLite数据库
