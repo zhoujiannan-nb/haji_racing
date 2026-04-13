@@ -37,6 +37,11 @@ dependencies:
   sqflite: ^2.3.0
   path_provider: ^2.1.1
   path: ^1.8.3
+  
+  # 定位相关
+  geolocator: ^10.1.0
+  permission_handler: ^11.0.0
+  wakelock_plus: ^1.1.0
 
 dev_dependencies:
   flutter_test:

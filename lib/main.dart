@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
 import 'pages/home_page.dart';
+import 'database/seed_tracks.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // 初始化测试赛道数据
+  await initializeTestTracks();
+
   runApp(const MyApp());
 }
 

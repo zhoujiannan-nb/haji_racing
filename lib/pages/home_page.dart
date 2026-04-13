@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/car.dart';
 import '../database/database_helper.dart';
 import 'car_list_page.dart';
-import 'car_detail_page.dart';
+import 'track_list_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -110,6 +110,19 @@ class _HomePageState extends State<HomePage> {
                     );
                     _loadMainCar();
                   },
+                  tooltip: '车辆列表',
+                ),
+                IconButton(
+                  icon: const Icon(Icons.flag, color: Colors.white),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const TrackListPage(),
+                      ),
+                    );
+                  },
+                  tooltip: '赛道列表',
                 ),
               ],
             ),
