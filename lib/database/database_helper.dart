@@ -5,6 +5,8 @@ import '../models/user.dart';
 import '../models/track.dart';
 import '../models/track_record.dart';
 import '../models/track_point.dart';
+import '../models/checkpoint.dart';
+import '../models/track_rule.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
@@ -24,7 +26,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 4,
+      version: 5,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -60,22 +62,43 @@ class DatabaseHelper {
       )
     ''');
 
-    // 赛道表
+    // 赛道表 - 支持多边形电子围栏
     await db.execute('''
       CREATE TABLE tracks (
         id $idType,
         name $textType,
         description TEXT,
         length $realType,
-        startLatitude $realType,
-        startLongitude $realType,
-        startRadius $realType DEFAULT 50.0,
-        endLatitude $realType,
-        endLongitude $realType,
-        endRadius $realType DEFAULT 50.0,
+        startPolygon TEXT NOT NULL,
+        endPolygon TEXT NOT NULL,
         thumbnailUrl TEXT,
         publishedAt TEXT NOT NULL DEFAULT (datetime('now')),
         createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    ''');
+
+    // 检查点表
+    await db.execute('''
+      CREATE TABLE checkpoints (
+        id $idType,
+        trackId INTEGER NOT NULL,
+        name $textType,
+        sequence INTEGER NOT NULL,
+        polygon TEXT NOT NULL,
+        description TEXT,
+        FOREIGN KEY (trackId) REFERENCES tracks(id)
+      )
+    ''');
+
+    // 赛道规则表
+    await db.execute('''
+      CREATE TABLE track_rules (
+        id $idType,
+        checkPointId INTEGER NOT NULL,
+        ruleType $textType,
+        parameters TEXT NOT NULL,
+        description TEXT,
+        FOREIGN KEY (checkPointId) REFERENCES checkpoints(id)
       )
     ''');
 
@@ -144,9 +167,54 @@ class DatabaseHelper {
       );
     }
 
-    if (oldVersion < 4) {
-      // 版本3升级到版本4：添加用户表、赛道表、轨迹记录表、轨迹点表
-      // 由于开发阶段直接重装app，这里暂不实现迁移逻辑
+    if (oldVersion < 5) {
+      // 版本4升级到版本5：重构赛道表结构，支持多边形电子围栏和检查点
+      const idType = 'INTEGER PRIMARY KEY AUTOINCREMENT';
+      const textType = 'TEXT NOT NULL';
+      const realType = 'REAL NOT NULL';
+
+      // 删除旧表
+      await db.execute('DROP TABLE IF EXISTS tracks');
+
+      // 创建新表
+      await db.execute('''
+        CREATE TABLE tracks (
+          id $idType,
+          name $textType,
+          description TEXT,
+          length $realType,
+          startPolygon TEXT NOT NULL,
+          endPolygon TEXT NOT NULL,
+          thumbnailUrl TEXT,
+          publishedAt TEXT NOT NULL DEFAULT (datetime('now')),
+          createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+      ''');
+
+      // 创建检查点表
+      await db.execute('''
+        CREATE TABLE checkpoints (
+          id $idType,
+          trackId INTEGER NOT NULL,
+          name $textType,
+          sequence INTEGER NOT NULL,
+          polygon TEXT NOT NULL,
+          description TEXT,
+          FOREIGN KEY (trackId) REFERENCES tracks(id)
+        )
+      ''');
+
+      // 创建赛道规则表
+      await db.execute('''
+        CREATE TABLE track_rules (
+          id $idType,
+          checkPointId INTEGER NOT NULL,
+          ruleType $textType,
+          parameters TEXT NOT NULL,
+          description TEXT,
+          FOREIGN KEY (checkPointId) REFERENCES checkpoints(id)
+        )
+      ''');
     }
   }
 
@@ -260,6 +328,117 @@ class DatabaseHelper {
   Future<int> insertTrack(Track track) async {
     final db = await database;
     return await db.insert('tracks', track.toMap());
+  }
+
+  // 删除赛道（同时删除关联的检查点、规则和轨迹记录）
+  Future<int> deleteTrack(int id) async {
+    final db = await database;
+    // 先获取该赛道的所有检查点
+    final checkpoints = await getCheckPointsByTrack(id);
+
+    // 删除每个检查点的规则
+    for (var checkpoint in checkpoints) {
+      await db.delete(
+        'track_rules',
+        where: 'checkPointId = ?',
+        whereArgs: [checkpoint.id],
+      );
+    }
+
+    // 删除检查点
+    await db.delete('checkpoints', where: 'trackId = ?', whereArgs: [id]);
+
+    // 删除轨迹记录（会级联删除轨迹点）
+    await db.delete('track_records', where: 'trackId = ?', whereArgs: [id]);
+
+    // 最后删除赛道
+    return await db.delete('tracks', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // ==================== 检查点相关操作 ====================
+
+  // 获取赛道的所有检查点（按顺序）
+  Future<List<CheckPoint>> getCheckPointsByTrack(int trackId) async {
+    final db = await database;
+    final result = await db.query(
+      'checkpoints',
+      where: 'trackId = ?',
+      whereArgs: [trackId],
+      orderBy: 'sequence ASC',
+    );
+    return result.map((map) => CheckPoint.fromMap(map)).toList();
+  }
+
+  // 插入检查点
+  Future<int> insertCheckPoint(CheckPoint checkPoint) async {
+    final db = await database;
+    return await db.insert('checkpoints', checkPoint.toMap());
+  }
+
+  // 批量插入检查点
+  Future<void> insertCheckPoints(List<CheckPoint> checkPoints) async {
+    final db = await database;
+    for (var checkPoint in checkPoints) {
+      await db.insert('checkpoints', checkPoint.toMap());
+    }
+  }
+
+  // 删除检查点（同时删除关联的规则）
+  Future<int> deleteCheckPoint(int id) async {
+    final db = await database;
+    // 先删除关联的规则
+    await db.delete('track_rules', where: 'checkPointId = ?', whereArgs: [id]);
+    // 再删除检查点
+    return await db.delete('checkpoints', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // ==================== 赛道规则相关操作 ====================
+
+  // 获取检查点的所有规则
+  Future<List<TrackRule>> getRulesByCheckPoint(int checkPointId) async {
+    final db = await database;
+    final result = await db.query(
+      'track_rules',
+      where: 'checkPointId = ?',
+      whereArgs: [checkPointId],
+    );
+    return result.map((map) => TrackRule.fromMap(map)).toList();
+  }
+
+  // 插入规则
+  Future<int> insertRule(TrackRule rule) async {
+    final db = await database;
+    return await db.insert('track_rules', rule.toMap());
+  }
+
+  // 批量插入规则
+  Future<void> insertRules(List<TrackRule> rules) async {
+    final db = await database;
+    for (var rule in rules) {
+      await db.insert('track_rules', rule.toMap());
+    }
+  }
+
+  // 删除规则
+  Future<int> deleteRule(int id) async {
+    final db = await database;
+    return await db.delete('track_rules', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // 获取完整的赛道信息（包含检查点和规则）
+  Future<Track?> getTrackWithDetails(int id) async {
+    final track = await getTrack(id);
+    if (track == null) return null;
+
+    final checkPoints = await getCheckPointsByTrack(id);
+    final List<TrackRule> allRules = [];
+
+    for (var checkPoint in checkPoints) {
+      final rules = await getRulesByCheckPoint(checkPoint.id!);
+      allRules.addAll(rules);
+    }
+
+    return track.copyWith(checkPoints: checkPoints, rules: allRules);
   }
 
   // ==================== 轨迹记录相关操作 ====================

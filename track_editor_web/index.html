@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>赛道编辑器 - Haji Racing</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        #container {
+            display: flex;
+            height: 100vh;
+        }
+
+        #map-container {
+            flex: 1;
+            position: relative;
+        }
+
+        #search-box {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            display: flex;
+            gap: 10px;
+        }
+
+        #search-input {
+            width: 250px;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        #sidebar {
+            width: 350px;
+            background: #f5f5f5;
+            padding: 20px;
+            overflow-y: auto;
+            box-shadow: -2px 0 5px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .section h2 {
+            font-size: 18px;
+            margin-bottom: 10px;
+            color: #FF3D00;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 5px 0;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+
+        .btn-primary {
+            background: #FF3D00;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #E63600;
+        }
+
+        .btn-secondary {
+            background: #2196F3;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #1976D2;
+        }
+
+        .btn-success {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #45a049;
+        }
+
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #da190b;
+        }
+
+        .mode-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .checkpoint-item {
+            padding: 10px;
+            margin: 10px 0;
+            background: #f9f9f9;
+            border-left: 4px solid #2196F3; /* 默认蓝色用于检查点 */
+            border-radius: 4px;
+        }
+
+        .start-fence-item {
+            padding: 10px;
+            margin: 10px 0;
+            background: #f9f9f9;
+            border-left: 4px solid #FF3D00; /* 红色用于起点 */
+            border-radius: 4px;
+        }
+
+        .end-fence-item {
+            padding: 10px;
+            margin: 10px 0;
+            background: #f9f9f9;
+            border-left: 4px solid #4CAF50; /* 绿色用于终点 */
+            border-radius: 4px;
+        }
+
+        .checkpoint-item h3 {
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+
+        .checkpoint-item p {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .rule-item {
+            padding: 8px;
+            margin: 5px 0;
+            background: #e3f2fd;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .info-text {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        #export-area {
+            margin-top: 20px;
+        }
+
+        #json-output {
+            width: 100%;
+            min-height: 200px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+    </style>
+    <script type="text/javascript">
+        window._AMapSecurityConfig = {
+            securityJsCode: '359de6f5e42410919dffbc0a717c51e9', // 请替换为你控制台显示的安全密钥
+        }
+    </script>
+</head>
+<body>
+    <div id="container">
+        <div id="map-container">
+            <div id="search-box">
+                <input type="text" id="search-input" placeholder="搜索地点、地址或经纬度 (如: 39.9,116.4)">
+                <button class="btn-primary" onclick="searchLocation()">搜索</button>
+            </div>
+            <div id="map"></div>
+        </div>
+        <div id="sidebar">
+            <h1>🏁 赛道编辑器</h1>
+            
+            <!-- 赛道基本信息 -->
+            <div class="section">
+                <h2>赛道信息</h2>
+                <label for="track-name">赛道名称</label>
+                <input type="text" id="track-name" placeholder="输入赛道名称">
+                
+                <label for="track-description">简介</label>
+                <textarea id="track-description" placeholder="赛道描述"></textarea>
+                
+                <label for="track-length">长度 (米)</label>
+                <input type="number" id="track-length" placeholder="例如: 3500" step="0.1">
+            </div>
+
+            <!-- 绘制模式选择 -->
+            <div class="section">
+                <h2>绘制模式</h2>
+                <div class="mode-buttons">
+                    <button class="btn-primary" onclick="setMode('start')">起点围栏</button>
+                    <button class="btn-primary" onclick="setMode('end')">终点围栏</button>
+                    <button class="btn-secondary" onclick="setMode('checkpoint')">检查点</button>
+                    <button class="btn-danger" onclick="clearCurrent()">清除当前</button>
+                </div>
+                <p class="info-text" id="mode-info">请先选择绘制模式，然后点击地图添加顶点</p>
+                <div style="margin-top: 15px; display: flex; gap: 10px;">
+                    <button class="btn-success" onclick="finishPolygon()" id="finish-btn" disabled>完成绘制</button>
+                    <button class="btn-secondary" onclick="cancelDrawing()" id="cancel-btn" disabled>取消绘制</button>
+                </div>
+            </div>
+
+            <!-- 检查点列表 -->
+            <div class="section" id="checkpoints-section" style="display:none;">
+                <h2>检查点列表</h2>
+                <div id="checkpoints-list"></div>
+            </div>
+
+            <!-- 规则设置 -->
+            <div class="section" id="rules-section" style="display:none;">
+                <h2>检查点规则</h2>
+                <label for="selected-checkpoint">选择检查点</label>
+                <select id="selected-checkpoint"></select>
+                
+                <div id="current-rules-display" style="margin: 10px 0; padding: 10px; background: #f9f9f9; border-radius: 4px; max-height: 150px; overflow-y: auto;">
+                    <p style="color: #999; font-size: 13px;">暂无规则</p>
+                </div>
+
+                <hr style="border: none; border-top: 1px solid #eee; margin: 15px 0;">
+
+                <h3 style="font-size: 16px; margin-bottom: 10px;">添加新规则</h3>
+                <label for="rule-type">规则类型</label>
+                <select id="rule-type">
+                    <option value="min_points">最少点数规则 (Min Points)</option>
+                    <option value="speed_limit">速度限制 (Speed Limit)</option>
+                    <option value="time_limit">时间限制 (Time Limit)</option>
+                    <option value="mandatory_stop">强制停留 (Mandatory Stop)</option>
+                </select>
+                
+                <div id="rule-params">
+                    <!-- 动态生成规则参数输入 -->
+                </div>
+                
+                <label for="rule-description">规则描述</label>
+                <input type="text" id="rule-description" placeholder="例如: 必须在此处减速至 40km/h 以下">
+                
+                <button class="btn-success" onclick="addRule()" style="width: 100%; margin-top: 10px;">添加规则</button>
+            </div>
+
+            <!-- 导出功能 -->
+            <div class="section" id="export-area">
+                <h2>导出赛道</h2>
+                <button class="btn-success" onclick="exportTrack()" style="width: 100%;">生成JSON</button>
+                <button class="btn-primary" onclick="downloadJSON()" style="width: 100%; margin-top: 10px;">下载JSON文件</button>
+                <textarea id="json-output" placeholder="JSON输出将显示在这里..." readonly></textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- 高德地图API -->
+    <script src="https://webapi.amap.com/maps?v=2.0&key=43a5e491ea2ceafa789253d0c14a26b0"></script>
+    <script src="editor.js"></script>
+</body>
+</html>

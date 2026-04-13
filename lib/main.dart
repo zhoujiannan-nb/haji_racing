@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'pages/home_page.dart';
-import 'database/seed_tracks.dart';
+import 'services/track_import_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 初始化测试赛道数据
-  await initializeTestTracks();
+  // 从JSON文件导入赛道数据
+  final importService = TrackImportService();
+  await importService.importTracksFromAssets();
 
   runApp(const MyApp());
 }
