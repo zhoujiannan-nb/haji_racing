@@ -1,4 +1,5 @@
 import 'dart:math';
+import '../models/checkpoint.dart';
 
 /// 地理位置工具类
 class LocationUtils {
@@ -68,5 +69,64 @@ class LocationUtils {
     final ms = ((seconds % 1) * 100).floor();
 
     return '${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}.${ms.toString().padLeft(2, '0')}';
+  }
+
+  /// 计算多边形的中心点（质心）
+  static LatLng calculatePolygonCenter(List<LatLng> polygon) {
+    if (polygon.isEmpty) {
+      throw ArgumentError('多边形不能为空');
+    }
+
+    double sumLat = 0;
+    double sumLon = 0;
+
+    for (final point in polygon) {
+      sumLat += point.latitude;
+      sumLon += point.longitude;
+    }
+
+    final centerLat = sumLat / polygon.length;
+    final centerLon = sumLon / polygon.length;
+
+    return LatLng(centerLat, centerLon);
+  }
+
+  /// 计算点到多边形中心的距离，并判断是否在多边形范围内
+  /// 这里简化处理：使用多边形外接圆半径作为判断依据
+  static bool isPointInPolygon({
+    required double pointLat,
+    required double pointLon,
+    required List<LatLng> polygon,
+  }) {
+    if (polygon.isEmpty) {
+      return false;
+    }
+
+    // 计算多边形中心
+    final center = calculatePolygonCenter(polygon);
+
+    // 计算多边形最大半径（从中心到最远顶点的距离）
+    double maxRadius = 0;
+    for (final vertex in polygon) {
+      final distance = calculateDistance(
+        center.latitude,
+        center.longitude,
+        vertex.latitude,
+        vertex.longitude,
+      );
+      if (distance > maxRadius) {
+        maxRadius = distance;
+      }
+    }
+
+    // 判断当前点是否在多边形外接圆内
+    final distanceToCenter = calculateDistance(
+      pointLat,
+      pointLon,
+      center.latitude,
+      center.longitude,
+    );
+
+    return distanceToCenter <= maxRadius;
   }
 }

@@ -6,6 +6,7 @@ import '../models/track_point.dart';
 import '../database/database_helper.dart';
 import '../services/location_service.dart';
 import '../utils/location_utils.dart';
+import '../models/checkpoint.dart';
 
 class TrackRunningPage extends StatefulWidget {
   final Track track;
@@ -46,11 +47,15 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
       setState(() {
         _currentLatitude = location.latitude;
         _currentLongitude = location.longitude;
+        // 计算当前位置到起点多边形中心的距离
+        final startCenter = LocationUtils.calculatePolygonCenter(
+          widget.track.startPolygon,
+        );
         _distanceToStart = LocationUtils.getDistanceToCenter(
           pointLat: location.latitude,
           pointLon: location.longitude,
-          centerLat: widget.track.startLatitude,
-          centerLon: widget.track.startLongitude,
+          centerLat: startCenter.latitude,
+          centerLon: startCenter.longitude,
         );
       });
     } catch (e) {
@@ -139,12 +144,10 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
       // 检查是否到达终点
       if (!_isTiming) {
         // 检查是否满足计时触发条件（在起点围栏内且速度>15km/h）
-        final isInStartArea = LocationUtils.isPointInCircle(
+        final isInStartArea = LocationUtils.isPointInPolygon(
           pointLat: location.latitude,
           pointLon: location.longitude,
-          centerLat: widget.track.startLatitude,
-          centerLon: widget.track.startLongitude,
-          radius: widget.track.startRadius,
+          polygon: widget.track.startPolygon,
         );
 
         if (isInStartArea && (location.speed ?? 0) > 15) {
@@ -154,12 +157,10 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
         }
       } else {
         // 已经在计时中，检查是否到达终点
-        final isInEndArea = LocationUtils.isPointInCircle(
+        final isInEndArea = LocationUtils.isPointInPolygon(
           pointLat: location.latitude,
           pointLon: location.longitude,
-          centerLat: widget.track.endLatitude,
-          centerLon: widget.track.endLongitude,
-          radius: widget.track.endRadius,
+          polygon: widget.track.endPolygon,
         );
 
         if (isInEndArea) {
