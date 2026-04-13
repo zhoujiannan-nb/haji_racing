@@ -23,6 +23,7 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
 
   bool _isStarted = false;
   bool _isTiming = false;
+  bool _isInStartArea = false; // 是否已进入起点区域
   double _elapsedTime = 0;
   Timer? _timer;
   StreamSubscription<LocationData>? _locationSubscription;
@@ -70,11 +71,15 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
       setState(() {
         _currentLatitude = location.latitude;
         _currentLongitude = location.longitude;
-        // 计算当前位置到起点多边形的最短距离
-        _distanceToStart = LocationUtils.getDistanceToPolygon(
+        // 计算当前位置到起点多边形中心的距离（用于判断是否可以开始）
+        final startCenter = LocationUtils.calculatePolygonCenter(
+          widget.track.startPolygon,
+        );
+        _distanceToStart = LocationUtils.getDistanceToCenter(
           pointLat: location.latitude,
           pointLon: location.longitude,
-          polygon: widget.track.startPolygon,
+          centerLat: startCenter.latitude,
+          centerLon: startCenter.longitude,
         );
       });
     } catch (e) {
@@ -88,11 +93,11 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
 
   /// 开始跟跑
   Future<void> _startRunning() async {
-    // 验证是否在起点附近（到多边形最近点200米内）
-    if (_distanceToStart == null || _distanceToStart! > 200) {
+    // 验证是否在起点附近（到中心点300米内）
+    if (_distanceToStart == null || _distanceToStart! > 300) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('请前往起点附近再开始（200米内）')));
+      ).showSnackBar(const SnackBar(content: Text('请前往起点附近再开始（300米内）')));
       return;
     }
 
@@ -172,14 +177,21 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
 
       // 检查是否到达终点
       if (!_isTiming) {
-        // 检查是否满足计时触发条件（在起点围栏内且速度>15km/h）
-        // 使用射线法判断点是否在起点多边形内
+        // 检查是否在起点区域内
         final isInStartArea = LocationUtils.isPointInPolygon(
           pointLat: location.latitude,
           pointLon: location.longitude,
           polygon: widget.track.startPolygon,
         );
 
+        // 更新进入起点区域的状态
+        if (isInStartArea != _isInStartArea) {
+          setState(() {
+            _isInStartArea = isInStartArea;
+          });
+        }
+
+        // 检查是否满足计时触发条件（在起点围栏内且速度>15km/h）
         if (isInStartArea && (location.speed ?? 0) > 15) {
           setState(() {
             _isTiming = true;
@@ -279,6 +291,7 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
     setState(() {
       _isStarted = false;
       _isTiming = false;
+      _isInStartArea = false;
       _elapsedTime = 0;
       _recordId = null;
       _pointSequence = 0;
@@ -302,9 +315,9 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
 
   @override
   Widget build(BuildContext context) {
-    // 开始按钮的触发条件：距离起点多边形最近点200米内
+    // 开始按钮的触发条件：距离起点中心300米内
     final canStart =
-        !_isStarted && _distanceToStart != null && _distanceToStart! <= 200;
+        !_isStarted && _distanceToStart != null && _distanceToStart! <= 300;
 
     return Scaffold(
       appBar: AppBar(
@@ -366,7 +379,7 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
                           style: TextStyle(
                             color:
                                 _distanceToStart != null &&
-                                    _distanceToStart! <= 200
+                                    _distanceToStart! <= 300
                                 ? Colors.green
                                 : Colors.orange,
                             fontWeight: FontWeight.bold,
@@ -384,6 +397,24 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
                             Text(
                               '${_currentSpeed!.toStringAsFixed(1)} km/h',
                               style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    if (_isInStartArea)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.check_circle, color: Colors.green),
+                            SizedBox(width: 8),
+                            Text(
+                              '已进入起点区域',
+                              style: TextStyle(
+                                color: Colors.green,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -440,8 +471,8 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
             // 提示信息
             if (!_isStarted)
               Text(
-                _distanceToStart != null && _distanceToStart! > 200
-                    ? '您距离起点${_distanceToStart!.toStringAsFixed(0)}米，请前往起点附近（200米内）'
+                _distanceToStart != null && _distanceToStart! > 300
+                    ? '您距离起点${_distanceToStart!.toStringAsFixed(0)}米，请前往起点附近（300米内）'
                     : '准备就绪，点击开始按钮开始跟跑',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.grey[600], fontSize: 14),
