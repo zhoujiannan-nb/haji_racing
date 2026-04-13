@@ -59,7 +59,7 @@ class LocationService {
 
     _isListening = true;
 
-    // 设置定位选项
+    // 设置定位选项 - 优化用于后台/锁屏场景
     const locationSettings = LocationSettings(
       accuracy: LocationAccuracy.best,
       distanceFilter: 0, // 0表示每次位置变化都上报

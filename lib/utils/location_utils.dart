@@ -6,6 +6,82 @@ class LocationUtils {
   /// 地球半径（米）
   static const double earthRadius = 6371000;
 
+  // ==================== 坐标系转换相关常量 ====================
+  static const double pi = 3.1415926535897932384626;
+  static const double a = 6378245.0;
+  static const double ee = 0.00669342162296594323;
+
+  /// WGS-84 转 GCJ-02（火星坐标系）
+  /// 用于将 GPS 原始坐标转换为高德/腾讯地图使用的坐标
+  static LatLng wgs84ToGcj02(double lat, double lon) {
+    if (_outOfChina(lat, lon)) {
+      return LatLng(lat, lon);
+    }
+
+    final dlat = _transformLat(lon - 105.0, lat - 35.0);
+    final dlon = _transformLon(lon - 105.0, lat - 35.0);
+    final radlat = lat / 180.0 * pi;
+    var magic = sin(radlat);
+    magic = 1 - ee * magic * magic;
+    final sqrtmagic = sqrt(magic);
+    final mglat =
+        lat + (dlat * 180.0) / ((a * (1 - ee)) / (magic * sqrtmagic) * pi);
+    final mglon = lon + (dlon * 180.0) / (a / sqrtmagic * cos(radlat) * pi);
+
+    return LatLng(mglat, mglon);
+  }
+
+  /// GCJ-02 转 WGS-84
+  /// 用于将高德/腾讯地图坐标转换为 GPS 原始坐标
+  static LatLng gcj02ToWgs84(double lat, double lon) {
+    if (_outOfChina(lat, lon)) {
+      return LatLng(lat, lon);
+    }
+
+    final dlat = _transformLat(lon - 105.0, lat - 35.0);
+    final dlon = _transformLon(lon - 105.0, lat - 35.0);
+    final radlat = lat / 180.0 * pi;
+    var magic = sin(radlat);
+    magic = 1 - ee * magic * magic;
+    final sqrtmagic = sqrt(magic);
+    final mglat =
+        lat + (dlat * 180.0) / ((a * (1 - ee)) / (magic * sqrtmagic) * pi);
+    final mglon = lon + (dlon * 180.0) / (a / sqrtmagic * cos(radlat) * pi);
+
+    return LatLng(lat * 2 - mglat, lon * 2 - mglon);
+  }
+
+  /// 判断是否在中国境外
+  static bool _outOfChina(double lat, double lon) {
+    if (lon < 72.004 || lon > 137.8347) return true;
+    if (lat < 0.8293 || lat > 55.8271) return true;
+    return false;
+  }
+
+  static double _transformLat(double x, double y) {
+    var ret =
+        -100.0 +
+        2.0 * x +
+        3.0 * y +
+        0.2 * y * y +
+        0.1 * x * y +
+        0.2 * sqrt(x.abs());
+    ret += (20.0 * sin(6.0 * x * pi) + 20.0 * sin(2.0 * x * pi)) * 2.0 / 3.0;
+    ret += (20.0 * sin(y * pi) + 40.0 * sin(y / 3.0 * pi)) * 2.0 / 3.0;
+    ret += (160.0 * sin(y / 12.0 * pi) + 320 * sin(y * pi / 30.0)) * 2.0 / 3.0;
+    return ret;
+  }
+
+  static double _transformLon(double x, double y) {
+    var ret =
+        300.0 + x + 2.0 * y + 0.1 * x * x + 0.1 * x * y + 0.1 * sqrt(x.abs());
+    ret += (20.0 * sin(6.0 * x * pi) + 20.0 * sin(2.0 * x * pi)) * 2.0 / 3.0;
+    ret += (20.0 * sin(x * pi) + 40.0 * sin(x / 3.0 * pi)) * 2.0 / 3.0;
+    ret +=
+        (150.0 * sin(x / 12.0 * pi) + 300.0 * sin(x / 30.0 * pi)) * 2.0 / 3.0;
+    return ret;
+  }
+
   /// 计算两点之间的距离（单位：米）
   /// 使用 Haversine 公式
   static double calculateDistance(

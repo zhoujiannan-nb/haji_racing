@@ -7,6 +7,7 @@ import '../models/track_point.dart';
 import '../database/database_helper.dart';
 import '../services/location_service.dart';
 import '../utils/location_utils.dart';
+import '../services/running_notification_service.dart';
 
 class TrackRunningPage extends StatefulWidget {
   final Track track;
@@ -20,10 +21,13 @@ class TrackRunningPage extends StatefulWidget {
 class _TrackRunningPageState extends State<TrackRunningPage> {
   final LocationService _locationService = LocationService();
   final DatabaseHelper _db = DatabaseHelper.instance;
+  final RunningNotificationService _notificationService =
+      RunningNotificationService();
 
   bool _isStarted = false;
   bool _isTiming = false;
   bool _isInStartArea = false; // 是否已进入起点区域
+  bool _isStopping = false; // 是否正在停止过程中（用于UI提示）
   double _elapsedTime = 0;
   Timer? _timer;
   StreamSubscription<LocationData>? _locationSubscription;
@@ -33,7 +37,9 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
   double? _currentLatitude;
   double? _currentLongitude;
   double? _distanceToStart;
+  double? _distanceToEnd;
   double? _currentSpeed;
+  double _totalDistance = 0; // 累计距离（米）
 
   // 批量存储相关
   final List<TrackPoint> _pendingPoints = []; // 待存储的轨迹点缓存
@@ -68,20 +74,25 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
   Future<void> _checkStartPosition() async {
     try {
       final location = await _locationService.getCurrentLocation();
-      setState(() {
-        _currentLatitude = location.latitude;
-        _currentLongitude = location.longitude;
-        // 计算当前位置到起点多边形中心的距离（用于判断是否可以开始）
-        final startCenter = LocationUtils.calculatePolygonCenter(
-          widget.track.startPolygon,
-        );
-        _distanceToStart = LocationUtils.getDistanceToCenter(
-          pointLat: location.latitude,
-          pointLon: location.longitude,
-          centerLat: startCenter.latitude,
-          centerLon: startCenter.longitude,
-        );
-      });
+      if (mounted) {
+        // 检查组件是否仍然挂载
+        setState(() {
+          _currentLatitude = location.latitude;
+          _currentLongitude = location.longitude;
+          // 计算当前位置到起点多边形的最短距离（用于判断是否可以开始）
+          _distanceToStart = LocationUtils.getDistanceToPolygon(
+            pointLat: location.latitude,
+            pointLon: location.longitude,
+            polygon: widget.track.startPolygon,
+          );
+          // 计算当前位置到终点多边形的最短距离
+          _distanceToEnd = LocationUtils.getDistanceToPolygon(
+            pointLat: location.latitude,
+            pointLon: location.longitude,
+            polygon: widget.track.endPolygon,
+          );
+        });
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -93,18 +104,21 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
 
   /// 开始跟跑
   Future<void> _startRunning() async {
-    // 验证是否在起点附近（到中心点300米内）
-    if (_distanceToStart == null || _distanceToStart! > 300) {
+    // 验证是否在起点附近（到起点多边形边500米内）
+    if (_distanceToStart == null || _distanceToStart! > 500) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('请前往起点附近再开始（300米内）')));
+      ).showSnackBar(const SnackBar(content: Text('请前往起点附近再开始（500米内）')));
       return;
     }
 
     try {
-      setState(() {
-        _isStarted = true;
-      });
+      if (mounted) {
+        // 检查组件是否仍然挂载
+        setState(() {
+          _isStarted = true;
+        });
+      }
 
       // 获取当前用户
       final user = await _db.getCurrentUser();
@@ -122,9 +136,20 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
         carId: mainCar?.id,
         startTime: DateTime.now().toIso8601String(),
         status: 'incomplete',
+        manuallyStopped: false,
       );
       _recordId = await _db.createTrackRecord(record);
       _pointSequence = 0;
+
+      // 请求通知权限并显示跑步通知
+      if (mounted) {
+        await _notificationService.requestPermissions();
+        await _notificationService.showRunningNotification(
+          elapsedTime: LocationUtils.formatDuration(_elapsedTime),
+          distance: 0,
+          speed: 0,
+        );
+      }
 
       // 开始连续定位
       _locationSubscription = _locationService.startContinuousLocation().listen(
@@ -132,29 +157,48 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
           _handleLocationUpdate(location);
         },
         onError: (error) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('定位错误: $error')));
-          _stopRunning(saveRecord: false);
+          if (mounted) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text('定位错误: $error')));
+            _stopRunning(saveRecord: false);
+          }
         },
       );
 
-      // 启动计时器
-      _startTimer();
+      // 注意：计时器不在这里启动，而是在真正进入起点区域且速度>15km/h时才启动
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('启动失败: $e')));
-      _stopRunning(saveRecord: false);
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('启动失败: $e')));
+        _stopRunning(saveRecord: false);
+      }
     }
   }
 
   /// 处理定位更新
   Future<void> _handleLocationUpdate(LocationData location) async {
+    if (!mounted || _isStopping) return; // 如果组件已销毁或正在停止则直接返回
+
     setState(() {
       _currentLatitude = location.latitude;
       _currentLongitude = location.longitude;
       _currentSpeed = location.speed;
+
+      // 更新到起点的距离
+      _distanceToStart = LocationUtils.getDistanceToPolygon(
+        pointLat: location.latitude,
+        pointLon: location.longitude,
+        polygon: widget.track.startPolygon,
+      );
+
+      // 更新到终点的距离
+      _distanceToEnd = LocationUtils.getDistanceToPolygon(
+        pointLat: location.latitude,
+        pointLon: location.longitude,
+        polygon: widget.track.endPolygon,
+      );
     });
 
     // 保存轨迹点到缓存
@@ -186,16 +230,24 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
 
         // 更新进入起点区域的状态
         if (isInStartArea != _isInStartArea) {
-          setState(() {
-            _isInStartArea = isInStartArea;
-          });
+          if (mounted) {
+            // 检查组件是否仍然挂载
+            setState(() {
+              _isInStartArea = isInStartArea;
+            });
+          }
         }
 
         // 检查是否满足计时触发条件（在起点围栏内且速度>15km/h）
         if (isInStartArea && (location.speed ?? 0) > 15) {
-          setState(() {
-            _isTiming = true;
-          });
+          if (mounted) {
+            // 检查组件是否仍然挂载
+            setState(() {
+              _isTiming = true;
+            });
+            // 真正开始计时
+            _startTimer();
+          }
         }
       } else {
         // 已经在计时中，检查是否到达终点
@@ -208,9 +260,16 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
 
         if (isInEndArea) {
           await _flushPoints(); // 停止前刷新所有缓存点
-          _stopRunning(saveRecord: true);
+          if (mounted) {
+            _stopRunning(saveRecord: true);
+          }
         }
       }
+    }
+
+    // 更新通知（每秒更新一次）
+    if (_isStarted && _isTiming && mounted) {
+      await _updateNotification(location);
     }
   }
 
@@ -229,78 +288,130 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
     }
   }
 
+  /// 更新通知内容
+  Future<void> _updateNotification(LocationData location) async {
+    try {
+      // 计算距离（使用简单的累加方式）
+      if (_currentLatitude != null && _currentLongitude != null) {
+        final distance = LocationUtils.calculateDistance(
+          _currentLatitude!,
+          _currentLongitude!,
+          location.latitude,
+          location.longitude,
+        );
+        _totalDistance += distance;
+      }
+
+      // 更新通知
+      await _notificationService.updateRunningNotification(
+        elapsedTime: LocationUtils.formatDuration(_elapsedTime),
+        distance: _totalDistance / 1000, // 转换为公里
+        speed: location.speed ?? 0,
+      );
+    } catch (e) {
+      debugPrint('更新通知失败: $e');
+    }
+  }
+
   /// 启动计时器
   void _startTimer() {
     _timer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
-      setState(() {
-        _elapsedTime += 0.1;
-      });
+      if (mounted) {
+        // 检查组件是否仍然挂载
+        setState(() {
+          _elapsedTime += 0.1;
+        });
+      }
     });
   }
 
   /// 停止跟跑
-  Future<void> _stopRunning({required bool saveRecord}) async {
-    // 先刷新所有缓存的轨迹点
-    await _flushPoints();
-
-    // 停止定位
-    await _locationSubscription?.cancel();
-    await _locationService.stopLocation();
-
-    // 停止计时器
-    _timer?.cancel();
-
-    // 禁用屏幕常亮
-    await _disableWakeLock();
-
-    if (saveRecord && _recordId != null) {
-      // 更新轨迹记录为完成状态
-      final record = await _db.getTrackRecord(_recordId!);
-      if (record != null) {
-        await _db.updateTrackRecord(
-          record.copyWith(
-            endTime: DateTime.now().toIso8601String(),
-            duration: _elapsedTime,
-            status: 'completed',
-          ),
-        );
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '完成！用时: ${LocationUtils.formatDuration(_elapsedTime)}',
-            ),
-          ),
-        );
-      }
-    } else {
-      // 删除不完整的记录
-      if (_recordId != null) {
-        await _db.deleteTrackRecord(_recordId!);
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('已停止，本次轨迹未保存')));
-      }
+  Future<void> _stopRunning({
+    required bool saveRecord,
+    bool manuallyStopped = false,
+  }) async {
+    // 标记为停止状态，阻止后续定位数据处理
+    if (mounted) {
+      setState(() {
+        _isStopping = true;
+      });
     }
 
-    setState(() {
-      _isStarted = false;
-      _isTiming = false;
-      _isInStartArea = false;
-      _elapsedTime = 0;
-      _recordId = null;
-      _pointSequence = 0;
-      _pendingPoints.clear(); // 清空缓存
-    });
+    // 立即取消订阅和计时器，避免继续接收数据和计时
+    await _locationSubscription?.cancel();
+    _timer?.cancel();
 
-    // 返回上一页
+    // 显示停止提示
     if (mounted) {
-      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(manuallyStopped ? '已手动停止，正在保存数据...' : '已完成，正在保存数据...'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+
+    // 在后台执行数据保存操作（不阻塞UI）
+    _saveRunningData(saveRecord: saveRecord, manuallyStopped: manuallyStopped);
+
+    // 重置距离
+    _totalDistance = 0;
+  }
+
+  /// 后台保存跑步数据
+  Future<void> _saveRunningData({
+    required bool saveRecord,
+    bool manuallyStopped = false,
+  }) async {
+    try {
+      // 刷新所有缓存的轨迹点
+      await _flushPoints();
+
+      // 停止定位服务
+      await _locationService.stopLocation();
+
+      // 隐藏通知
+      if (mounted) {
+        await _notificationService.hideNotification();
+      }
+
+      // 禁用屏幕常亮
+      await _disableWakeLock();
+
+      if (saveRecord && _recordId != null) {
+        // 更新轨迹记录为完成状态
+        final record = await _db.getTrackRecord(_recordId!);
+        if (record != null) {
+          await _db.updateTrackRecord(
+            record.copyWith(
+              endTime: DateTime.now().toIso8601String(),
+              duration: _elapsedTime,
+              status: manuallyStopped ? 'incomplete' : 'completed',
+              manuallyStopped: manuallyStopped,
+            ),
+          );
+        }
+
+        debugPrint(
+          manuallyStopped
+              ? '已手动停止！用时: ${LocationUtils.formatDuration(_elapsedTime)}（未完成）'
+              : '完成！用时: ${LocationUtils.formatDuration(_elapsedTime)}',
+        );
+      } else {
+        // 删除不完整的记录
+        if (_recordId != null) {
+          await _db.deleteTrackRecord(_recordId!);
+        }
+
+        debugPrint('已停止，本次轨迹未保存');
+      }
+    } catch (e) {
+      debugPrint('保存跑步数据失败: $e');
+    } finally {
+      // 保存完成后返回上一页
+      if (mounted) {
+        Navigator.pop(context);
+      }
     }
   }
 
@@ -315,9 +426,9 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
 
   @override
   Widget build(BuildContext context) {
-    // 开始按钮的触发条件：距离起点中心300米内
+    // 开始按钮的触发条件：距离起点多边形边500米内
     final canStart =
-        !_isStarted && _distanceToStart != null && _distanceToStart! <= 300;
+        !_isStarted && _distanceToStart != null && _distanceToStart! <= 500;
 
     return Scaffold(
       appBar: AppBar(
@@ -327,8 +438,9 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
           if (_isStarted)
             IconButton(
               icon: const Icon(Icons.stop),
-              onPressed: () => _stopRunning(saveRecord: false),
-              tooltip: '停止',
+              onPressed: () =>
+                  _stopRunning(saveRecord: true, manuallyStopped: true),
+              tooltip: '手动停止',
             ),
         ],
       ),
@@ -368,20 +480,51 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
+                    // 停止中提示
+                    if (_isStopping)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.hourglass_empty,
+                              color: Colors.orange,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '正在保存数据...',
+                              style: TextStyle(
+                                color: Colors.orange,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('距离起点'),
+                        Text(_isStarted ? '距离终点' : '距离起点'),
                         Text(
-                          _distanceToStart != null
-                              ? '${_distanceToStart!.toStringAsFixed(0)} 米'
-                              : '计算中...',
+                          _isStarted
+                              ? (_distanceToEnd != null
+                                    ? '${_distanceToEnd!.toStringAsFixed(0)} 米'
+                                    : '计算中...')
+                              : (_distanceToStart != null
+                                    ? '${_distanceToStart!.toStringAsFixed(0)} 米'
+                                    : '计算中...'),
                           style: TextStyle(
-                            color:
-                                _distanceToStart != null &&
-                                    _distanceToStart! <= 300
-                                ? Colors.green
-                                : Colors.orange,
+                            color: _isStarted
+                                ? (_distanceToEnd != null &&
+                                          _distanceToEnd! <= 100
+                                      ? Colors.green
+                                      : Colors.orange)
+                                : (_distanceToStart != null &&
+                                          _distanceToStart! <= 500
+                                      ? Colors.green
+                                      : Colors.orange),
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -445,7 +588,7 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
             ),
             const SizedBox(height: 32),
 
-            // 开始按钮
+            // 开始/停止按钮
             if (!_isStarted)
               SizedBox(
                 width: double.infinity,
@@ -464,6 +607,21 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
                     foregroundColor: Colors.white,
                   ),
                 ),
+              )
+            else
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton.icon(
+                  onPressed: () =>
+                      _stopRunning(saveRecord: true, manuallyStopped: true),
+                  icon: const Icon(Icons.stop, size: 28),
+                  label: const Text('结束并保存', style: TextStyle(fontSize: 18)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
               ),
 
             const SizedBox(height: 16),
@@ -471,11 +629,81 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
             // 提示信息
             if (!_isStarted)
               Text(
-                _distanceToStart != null && _distanceToStart! > 300
-                    ? '您距离起点${_distanceToStart!.toStringAsFixed(0)}米，请前往起点附近（300米内）'
+                _distanceToStart != null && _distanceToStart! > 500
+                    ? '您距离起点${_distanceToStart!.toStringAsFixed(0)}米，请前往起点附近（500米内）'
                     : '准备就绪，点击开始按钮开始跟跑',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.grey[600], fontSize: 14),
+              )
+            else
+              Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.info_outline, color: Colors.blue, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '🔔 锁屏通知已启用',
+                                style: TextStyle(
+                                  color: Colors.blue[900],
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                '锁屏后仍可查看计时器，下拉通知栏可控制',
+                                style: TextStyle(
+                                  color: Colors.blue[900],
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  if (_isTiming)
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: Colors.green.withOpacity(0.3),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.timer, color: Colors.green, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '计时中...进入终点区域将自动停止',
+                              style: TextStyle(
+                                color: Colors.green[900],
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
               ),
           ],
         ),

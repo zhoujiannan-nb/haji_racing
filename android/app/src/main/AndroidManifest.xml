@@ -8,6 +8,10 @@
     <!-- 屏幕常亮权限（wakelock_plus 需要） -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     
+    <!-- 前台服务权限（用于锁屏通知） -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    
     <application
         android:label="haji_racing"
         android:name="${applicationName}"

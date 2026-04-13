@@ -26,7 +26,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 6,
+      version: 8,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -113,6 +113,7 @@ class DatabaseHelper {
         endTime TEXT,
         duration REAL,
         status TEXT NOT NULL DEFAULT 'incomplete',
+        manuallyStopped INTEGER DEFAULT 0,
         FOREIGN KEY (userId) REFERENCES users(id),
         FOREIGN KEY (trackId) REFERENCES tracks(id),
         FOREIGN KEY (carId) REFERENCES cars(id)
@@ -222,6 +223,18 @@ class DatabaseHelper {
     if (oldVersion < 6) {
       // 版本5升级到版本6：为轨迹记录表添加carId字段
       await db.execute('ALTER TABLE track_records ADD COLUMN carId INTEGER');
+    }
+
+    if (oldVersion < 8) {
+      // 版本7升级到版本8：确保manuallyStopped字段存在
+      try {
+        await db.execute(
+          'ALTER TABLE track_records ADD COLUMN manuallyStopped INTEGER DEFAULT 0',
+        );
+      } catch (e) {
+        // 如果字段已存在，忽略错误
+        print('manuallyStopped字段可能已存在: $e');
+      }
     }
   }
 
@@ -520,7 +533,7 @@ class DatabaseHelper {
     return result.map((map) => TrackPoint.fromMap(map)).toList();
   }
 
-  // 获取赛道的圈速榜（按时间排序）
+  // 获取赛道的圈速榜（按时间排序，只包含已完成的记录）
   Future<List<TrackRecord>> getTrackLeaderboard(int trackId) async {
     final db = await database;
     final result = await db.query(
@@ -537,8 +550,8 @@ class DatabaseHelper {
     final db = await database;
     final result = await db.query(
       'track_records',
-      where: 'userId = ? AND status = ? AND duration IS NOT NULL',
-      whereArgs: [userId, 'completed'],
+      where: 'userId = ? AND duration IS NOT NULL',
+      whereArgs: [userId],
       orderBy: 'startTime DESC',
     );
     return result.map((map) => TrackRecord.fromMap(map)).toList();

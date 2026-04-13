@@ -2,6 +2,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../models/track.dart';
 import '../models/checkpoint.dart' as models;
+import '../models/car.dart';
+import '../database/database_helper.dart';
 import 'track_running_page.dart';
 import 'leaderboard_widget.dart';
 
@@ -15,6 +17,34 @@ class TrackDetailPage extends StatefulWidget {
 }
 
 class _TrackDetailPageState extends State<TrackDetailPage> {
+  final DatabaseHelper _db = DatabaseHelper.instance;
+  Car? _currentCar;
+  bool _isLoadingCar = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCurrentCar();
+  }
+
+  Future<void> _loadCurrentCar() async {
+    try {
+      final car = await _db.getMainCar();
+      if (mounted) {
+        setState(() {
+          _currentCar = car;
+          _isLoadingCar = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoadingCar = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -27,6 +57,78 @@ class _TrackDetailPageState extends State<TrackDetailPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // 当前车辆信息卡片
+            Card(
+              color: Theme.of(context).colorScheme.primaryContainer,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.directions_car,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '当前车辆',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onPrimaryContainer,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    if (_isLoadingCar)
+                      const Center(child: CircularProgressIndicator())
+                    else if (_currentCar != null)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _currentCar!.name,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'PP值: ${_currentCar!.calculatePP().toStringAsFixed(0)}',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[700],
+                                ),
+                              ),
+                            ],
+                          ),
+                          Icon(
+                            Icons.check_circle,
+                            color: Theme.of(context).colorScheme.primary,
+                            size: 28,
+                          ),
+                        ],
+                      )
+                    else
+                      Text(
+                        '暂无车辆',
+                        style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
             // 圈速榜标题
             Row(
               children: [

@@ -4,6 +4,7 @@ import '../database/database_helper.dart';
 import '../models/track.dart';
 import '../models/checkpoint.dart';
 import '../models/track_rule.dart';
+import '../utils/location_utils.dart';
 
 /// 赛道JSON导入服务
 class TrackImportService {
@@ -120,14 +121,17 @@ class TrackImportService {
     }
   }
 
-  /// 解析多边形坐标
+  /// 解析多边形坐标（将GCJ-02坐标转换为WGS-84坐标）
   List<LatLng> _parsePolygon(List<dynamic> coords) {
     return coords.map((coord) {
       final coordMap = coord as Map<String, dynamic>;
-      return LatLng(
-        (coordMap['latitude'] as num).toDouble(),
-        (coordMap['longitude'] as num).toDouble(),
-      );
+      final gcjLat = (coordMap['latitude'] as num).toDouble();
+      final gcjLon = (coordMap['longitude'] as num).toDouble();
+
+      // 将GCJ-02坐标转换为WGS-84坐标
+      final wgs84 = LocationUtils.gcj02ToWgs84(gcjLat, gcjLon);
+
+      return LatLng(wgs84.latitude, wgs84.longitude);
     }).toList();
   }
 

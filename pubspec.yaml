@@ -42,6 +42,9 @@ dependencies:
   geolocator: ^10.1.0
   permission_handler: ^11.0.0
   wakelock_plus: ^1.1.0
+  
+  # 通知相关（用于锁屏控制）
+  flutter_local_notifications: ^17.0.0
 
 dev_dependencies:
   flutter_test:

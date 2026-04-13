@@ -155,13 +155,28 @@ class _TrackRecordDetailPageState extends State<TrackRecordDetailPage> {
                                 ),
                               ),
                               const Spacer(),
-                              Text(
-                                _formatDuration(widget.record.duration),
-                                style: const TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFFFF3D00),
-                                ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    _formatDuration(widget.record.duration),
+                                    style: TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold,
+                                      color: widget.record.manuallyStopped
+                                          ? Colors.orange
+                                          : const Color(0xFFFF3D00),
+                                    ),
+                                  ),
+                                  if (widget.record.manuallyStopped)
+                                    Text(
+                                      '未完成',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.orange,
+                                      ),
+                                    ),
+                                ],
                               ),
                             ],
                           ),
