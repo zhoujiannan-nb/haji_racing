@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/track.dart';
 import '../models/checkpoint.dart' as models;
 import 'track_running_page.dart';
+import 'leaderboard_widget.dart';
 
 class TrackDetailPage extends StatefulWidget {
   final Track track;
@@ -26,38 +27,21 @@ class _TrackDetailPageState extends State<TrackDetailPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 赛道缩略图 - 使用假的占位图
-            Container(
-              width: double.infinity,
-              height: 200,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  color: Colors.grey[400],
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.map, size: 50, color: Colors.grey[600]),
-                        const SizedBox(height: 8),
-                        Text(
-                          '赛道预览',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey[700],
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+            // 圈速榜标题
+            Row(
+              children: [
+                const Icon(Icons.emoji_events, color: Color(0xFFFFD700)),
+                const SizedBox(width: 8),
+                const Text(
+                  '赛道圈速榜',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
-              ),
+              ],
             ),
+            const SizedBox(height: 16),
+
+            // 圈速榜组件
+            LeaderboardWidget(trackId: widget.track.id!),
             const SizedBox(height: 24),
 
             // 赛道信息卡片

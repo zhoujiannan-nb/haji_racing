@@ -87,10 +87,14 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
         throw Exception('用户信息不存在');
       }
 
+      // 获取主车辆
+      final mainCar = await _db.getMainCar();
+
       // 创建轨迹记录
       final record = TrackRecord(
         userId: user.id!,
         trackId: widget.track.id!,
+        carId: mainCar?.id,
         startTime: DateTime.now().toIso8601String(),
         status: 'incomplete',
       );

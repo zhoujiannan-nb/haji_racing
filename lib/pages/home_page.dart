@@ -3,6 +3,7 @@ import '../models/car.dart';
 import '../database/database_helper.dart';
 import 'car_list_page.dart';
 import 'track_list_page.dart';
+import 'my_track_records_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -124,6 +125,19 @@ class _HomePageState extends State<HomePage> {
                     );
                   },
                   tooltip: '赛道列表',
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.route, color: Colors.white),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const MyTrackRecordsPage(),
+                      ),
+                    );
+                  },
+                  tooltip: '我的轨迹',
                 ),
               ],
             ),

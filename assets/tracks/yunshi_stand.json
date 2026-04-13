@@ -1,0 +1,125 @@
+{
+  "name": "云石(标准)",
+  "description": "云石赛道, 满血版本，8130m全长，超长的弯道很山路,无数车辆在此陨落...请注意安全",
+  "length": 8130,
+  "startPolygon": [
+    {
+      "latitude": 30.023509,
+      "longitude": 120.13571
+    },
+    {
+      "latitude": 30.023318,
+      "longitude": 120.135853
+    },
+    {
+      "latitude": 30.023105,
+      "longitude": 120.136001
+    },
+    {
+      "latitude": 30.022906,
+      "longitude": 120.136131
+    },
+    {
+      "latitude": 30.022709,
+      "longitude": 120.136257
+    },
+    {
+      "latitude": 30.022422,
+      "longitude": 120.136372
+    },
+    {
+      "latitude": 30.022263,
+      "longitude": 120.136477
+    },
+    {
+      "latitude": 30.022107,
+      "longitude": 120.136671
+    },
+    {
+      "latitude": 30.022173,
+      "longitude": 120.137017
+    },
+    {
+      "latitude": 30.022272,
+      "longitude": 120.137172
+    },
+    {
+      "latitude": 30.022572,
+      "longitude": 120.136992
+    },
+    {
+      "latitude": 30.022871,
+      "longitude": 120.136819
+    },
+    {
+      "latitude": 30.02309,
+      "longitude": 120.136693
+    },
+    {
+      "latitude": 30.023274,
+      "longitude": 120.136563
+    },
+    {
+      "latitude": 30.023467,
+      "longitude": 120.136322
+    },
+    {
+      "latitude": 30.023586,
+      "longitude": 120.136138
+    }
+  ],
+  "endPolygon": [
+    {
+      "latitude": 29.991177,
+      "longitude": 120.122736
+    },
+    {
+      "latitude": 29.991177,
+      "longitude": 120.122619
+    },
+    {
+      "latitude": 29.991222,
+      "longitude": 120.122439
+    },
+    {
+      "latitude": 29.99126,
+      "longitude": 120.122335
+    },
+    {
+      "latitude": 29.991203,
+      "longitude": 120.122211
+    },
+    {
+      "latitude": 29.99114,
+      "longitude": 120.122131
+    },
+    {
+      "latitude": 29.991049,
+      "longitude": 120.12209
+    },
+    {
+      "latitude": 29.990956,
+      "longitude": 120.122114
+    },
+    {
+      "latitude": 29.990899,
+      "longitude": 120.122264
+    },
+    {
+      "latitude": 29.990839,
+      "longitude": 120.122501
+    },
+    {
+      "latitude": 29.990859,
+      "longitude": 120.122712
+    },
+    {
+      "latitude": 29.99098,
+      "longitude": 120.122821
+    }
+  ],
+  "thumbnailUrl": null,
+  "publishedAt": "2026-04-13T09:07:53.441Z",
+  "createdAt": "2026-04-13T09:07:53.441Z",
+  "checkPoints": []
+}

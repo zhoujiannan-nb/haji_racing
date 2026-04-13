@@ -2,6 +2,7 @@ class TrackRecord {
   final int? id;
   final int userId;
   final int trackId;
+  final int? carId; // 车辆ID
   final String startTime;
   final String? endTime;
   final double? duration;
@@ -11,6 +12,7 @@ class TrackRecord {
     this.id,
     required this.userId,
     required this.trackId,
+    this.carId,
     required this.startTime,
     this.endTime,
     this.duration,
@@ -22,6 +24,7 @@ class TrackRecord {
       'id': id,
       'userId': userId,
       'trackId': trackId,
+      'carId': carId,
       'startTime': startTime,
       'endTime': endTime,
       'duration': duration,
@@ -34,6 +37,7 @@ class TrackRecord {
       id: map['id'],
       userId: map['userId'],
       trackId: map['trackId'],
+      carId: map['carId'],
       startTime: map['startTime'],
       endTime: map['endTime'],
       duration: map['duration'],
@@ -45,6 +49,7 @@ class TrackRecord {
     int? id,
     int? userId,
     int? trackId,
+    int? carId,
     String? startTime,
     String? endTime,
     double? duration,
@@ -54,6 +59,7 @@ class TrackRecord {
       id: id ?? this.id,
       userId: userId ?? this.userId,
       trackId: trackId ?? this.trackId,
+      carId: carId ?? this.carId,
       startTime: startTime ?? this.startTime,
       endTime: endTime ?? this.endTime,
       duration: duration ?? this.duration,

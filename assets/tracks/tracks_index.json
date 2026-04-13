@@ -2,6 +2,7 @@
   "version": "1.0",
   "description": "赛道索引文件，列出所有可用的赛道JSON文件",
   "tracks": [
-    "yunshi_new.json"
+    "yunshi_new.json",
+    "yunshi_stand.json"
   ]
 }
