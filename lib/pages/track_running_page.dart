@@ -70,15 +70,11 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
       setState(() {
         _currentLatitude = location.latitude;
         _currentLongitude = location.longitude;
-        // 计算当前位置到起点多边形中心的距离（用于判断是否可以开始）
-        final startCenter = LocationUtils.calculatePolygonCenter(
-          widget.track.startPolygon,
-        );
-        _distanceToStart = LocationUtils.getDistanceToCenter(
+        // 计算当前位置到起点多边形的最短距离
+        _distanceToStart = LocationUtils.getDistanceToPolygon(
           pointLat: location.latitude,
           pointLon: location.longitude,
-          centerLat: startCenter.latitude,
-          centerLon: startCenter.longitude,
+          polygon: widget.track.startPolygon,
         );
       });
     } catch (e) {
@@ -92,11 +88,11 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
 
   /// 开始跟跑
   Future<void> _startRunning() async {
-    // 验证是否在起点附近（300米内）
-    if (_distanceToStart == null || _distanceToStart! > 300) {
+    // 验证是否在起点附近（到多边形最近点200米内）
+    if (_distanceToStart == null || _distanceToStart! > 200) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('请前往起点附近再开始（300米内）')));
+      ).showSnackBar(const SnackBar(content: Text('请前往起点附近再开始（200米内）')));
       return;
     }
 
@@ -306,9 +302,9 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
 
   @override
   Widget build(BuildContext context) {
-    // 开始按钮的触发条件：距离起点中心300米内
+    // 开始按钮的触发条件：距离起点多边形最近点200米内
     final canStart =
-        !_isStarted && _distanceToStart != null && _distanceToStart! <= 300;
+        !_isStarted && _distanceToStart != null && _distanceToStart! <= 200;
 
     return Scaffold(
       appBar: AppBar(
@@ -370,7 +366,7 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
                           style: TextStyle(
                             color:
                                 _distanceToStart != null &&
-                                    _distanceToStart! <= 300
+                                    _distanceToStart! <= 200
                                 ? Colors.green
                                 : Colors.orange,
                             fontWeight: FontWeight.bold,
@@ -444,8 +440,8 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
             // 提示信息
             if (!_isStarted)
               Text(
-                _distanceToStart != null && _distanceToStart! > 300
-                    ? '您距离起点${_distanceToStart!.toStringAsFixed(0)}米，请前往起点附近（300米内）'
+                _distanceToStart != null && _distanceToStart! > 200
+                    ? '您距离起点${_distanceToStart!.toStringAsFixed(0)}米，请前往起点附近（200米内）'
                     : '准备就绪，点击开始按钮开始跟跑',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.grey[600], fontSize: 14),

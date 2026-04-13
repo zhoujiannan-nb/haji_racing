@@ -1,0 +1,133 @@
+{
+  "name": "测试回家",
+  "description": "测试",
+  "length": 11111,
+  "startPolygon": [
+    {
+      "latitude": 30.178501,
+      "longitude": 120.15417
+    },
+    {
+      "latitude": 30.178414,
+      "longitude": 120.154113
+    },
+    {
+      "latitude": 30.178314,
+      "longitude": 120.154172
+    },
+    {
+      "latitude": 30.178298,
+      "longitude": 120.154339
+    },
+    {
+      "latitude": 30.178263,
+      "longitude": 120.154564
+    },
+    {
+      "latitude": 30.178252,
+      "longitude": 120.154785
+    },
+    {
+      "latitude": 30.178233,
+      "longitude": 120.154949
+    },
+    {
+      "latitude": 30.178237,
+      "longitude": 120.155122
+    },
+    {
+      "latitude": 30.178224,
+      "longitude": 120.155244
+    },
+    {
+      "latitude": 30.178235,
+      "longitude": 120.155352
+    },
+    {
+      "latitude": 30.178324,
+      "longitude": 120.155359
+    },
+    {
+      "latitude": 30.178401,
+      "longitude": 120.155357
+    },
+    {
+      "latitude": 30.17844,
+      "longitude": 120.155163
+    },
+    {
+      "latitude": 30.178507,
+      "longitude": 120.154947
+    },
+    {
+      "latitude": 30.17854,
+      "longitude": 120.154772
+    },
+    {
+      "latitude": 30.178542,
+      "longitude": 120.154582
+    },
+    {
+      "latitude": 30.178586,
+      "longitude": 120.154378
+    },
+    {
+      "latitude": 30.178586,
+      "longitude": 120.154256
+    }
+  ],
+  "endPolygon": [
+    {
+      "latitude": 30.166088,
+      "longitude": 120.157494
+    },
+    {
+      "latitude": 30.166059,
+      "longitude": 120.157225
+    },
+    {
+      "latitude": 30.165969,
+      "longitude": 120.156842
+    },
+    {
+      "latitude": 30.165832,
+      "longitude": 120.156447
+    },
+    {
+      "latitude": 30.16569,
+      "longitude": 120.156134
+    },
+    {
+      "latitude": 30.165419,
+      "longitude": 120.156047
+    },
+    {
+      "latitude": 30.165054,
+      "longitude": 120.156074
+    },
+    {
+      "latitude": 30.164855,
+      "longitude": 120.156085
+    },
+    {
+      "latitude": 30.164737,
+      "longitude": 120.156405
+    },
+    {
+      "latitude": 30.164959,
+      "longitude": 120.156893
+    },
+    {
+      "latitude": 30.165125,
+      "longitude": 120.15743
+    },
+    {
+      "latitude": 30.16541,
+      "longitude": 120.157825
+    }
+  ],
+  "thumbnailUrl": null,
+  "publishedAt": "2026-04-13T10:10:01.024Z",
+  "createdAt": "2026-04-13T10:10:01.024Z",
+  "checkPoints": []
+}

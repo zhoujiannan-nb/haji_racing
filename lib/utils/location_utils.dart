@@ -153,4 +153,87 @@ class LocationUtils {
 
     return LatLng(centerLat, centerLon);
   }
+
+  /// 计算点到多边形的最短距离（单位：米）
+  /// 返回点到多边形边界上最近点的距离
+  static double getDistanceToPolygon({
+    required double pointLat,
+    required double pointLon,
+    required List<LatLng> polygon,
+  }) {
+    if (polygon.isEmpty) {
+      return double.infinity;
+    }
+
+    // 如果点在多边形内部，距离为0
+    if (isPointInPolygon(
+      pointLat: pointLat,
+      pointLon: pointLon,
+      polygon: polygon,
+    )) {
+      return 0;
+    }
+
+    double minDistance = double.infinity;
+
+    // 遍历多边形的每条边，计算点到线段的最短距离
+    for (int i = 0; i < polygon.length; i++) {
+      final p1 = polygon[i];
+      final p2 = polygon[(i + 1) % polygon.length];
+
+      final distance = _getDistanceToSegment(
+        pointLat,
+        pointLon,
+        p1.latitude,
+        p1.longitude,
+        p2.latitude,
+        p2.longitude,
+      );
+
+      if (distance < minDistance) {
+        minDistance = distance;
+      }
+    }
+
+    return minDistance;
+  }
+
+  /// 计算点到线段的最短距离（单位：米）
+  static double _getDistanceToSegment(
+    double pointLat,
+    double pointLon,
+    double x1,
+    double y1,
+    double x2,
+    double y2,
+  ) {
+    // 将经纬度转换为平面坐标进行计算（小范围内近似）
+    // 计算线段的长度平方
+    final l2 = _squaredDistance(x1, y1, x2, y2);
+
+    // 如果线段长度为0，返回点到端点的距离
+    if (l2 == 0) {
+      return calculateDistance(pointLat, pointLon, x1, y1);
+    }
+
+    // 计算投影参数 t
+    final t = ((pointLat - x1) * (x2 - x1) + (pointLon - y1) * (y2 - y1)) / l2;
+
+    // 限制 t 在 [0, 1] 范围内
+    final tClamped = t.clamp(0.0, 1.0);
+
+    // 计算线段上最近的点
+    final closestLat = x1 + tClamped * (x2 - x1);
+    final closestLon = y1 + tClamped * (y2 - y1);
+
+    // 返回点到最近点的距离
+    return calculateDistance(pointLat, pointLon, closestLat, closestLon);
+  }
+
+  /// 计算两点之间的平方距离（用于快速比较）
+  static double _squaredDistance(double x1, double y1, double x2, double y2) {
+    final dx = x2 - x1;
+    final dy = y2 - y1;
+    return dx * dx + dy * dy;
+  }
 }
