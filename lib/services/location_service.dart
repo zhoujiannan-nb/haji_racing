@@ -62,7 +62,7 @@ class LocationService {
     // 设置定位选项
     const locationSettings = LocationSettings(
       accuracy: LocationAccuracy.best,
-      distanceFilter: 0,
+      distanceFilter: 0, // 0表示每次位置变化都上报
     );
 
     try {

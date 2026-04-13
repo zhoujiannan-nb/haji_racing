@@ -71,6 +71,69 @@ class LocationUtils {
     return '${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}.${ms.toString().padLeft(2, '0')}';
   }
 
+  /// 使用射线法判断点是否在多边形内（包括边界上）
+  /// 适用于首尾相连的不交叉多边形
+  static bool isPointInPolygon({
+    required double pointLat,
+    required double pointLon,
+    required List<LatLng> polygon,
+  }) {
+    if (polygon.length < 3) {
+      return false;
+    }
+
+    int n = polygon.length;
+    bool inside = false;
+
+    // 射线法：从点向右发射一条水平射线，计算与多边形边的交点数
+    // 奇数个交点表示在内部，偶数个表示在外部
+    for (int i = 0, j = n - 1; i < n; j = i++) {
+      double xi = polygon[i].latitude;
+      double yi = polygon[i].longitude;
+      double xj = polygon[j].latitude;
+      double yj = polygon[j].longitude;
+
+      // 检查点是否在边上（包括顶点）
+      if (_isPointOnSegment(pointLat, pointLon, xi, yi, xj, yj)) {
+        return true;
+      }
+
+      // 判断射线是否与边相交
+      bool intersect =
+          ((yi > pointLon) != (yj > pointLon)) &&
+          (pointLat < (xj - xi) * (pointLon - yi) / (yj - yi) + xi);
+
+      if (intersect) {
+        inside = !inside;
+      }
+    }
+
+    return inside;
+  }
+
+  /// 判断点是否在线段上（包括端点）
+  static bool _isPointOnSegment(
+    double px,
+    double py,
+    double x1,
+    double y1,
+    double x2,
+    double y2,
+  ) {
+    // 首先检查点是否在线段的包围盒内
+    if (px < min(x1, x2) ||
+        px > max(x1, x2) ||
+        py < min(y1, y2) ||
+        py > max(y1, y2)) {
+      return false;
+    }
+
+    // 检查点是否在直线上（使用叉积）
+    // 如果叉积接近0，则点在直线上
+    double crossProduct = (py - y1) * (x2 - x1) - (px - x1) * (y2 - y1);
+    return crossProduct.abs() < 1e-9;
+  }
+
   /// 计算多边形的中心点（质心）
   static LatLng calculatePolygonCenter(List<LatLng> polygon) {
     if (polygon.isEmpty) {
@@ -89,44 +152,5 @@ class LocationUtils {
     final centerLon = sumLon / polygon.length;
 
     return LatLng(centerLat, centerLon);
-  }
-
-  /// 计算点到多边形中心的距离，并判断是否在多边形范围内
-  /// 这里简化处理：使用多边形外接圆半径作为判断依据
-  static bool isPointInPolygon({
-    required double pointLat,
-    required double pointLon,
-    required List<LatLng> polygon,
-  }) {
-    if (polygon.isEmpty) {
-      return false;
-    }
-
-    // 计算多边形中心
-    final center = calculatePolygonCenter(polygon);
-
-    // 计算多边形最大半径（从中心到最远顶点的距离）
-    double maxRadius = 0;
-    for (final vertex in polygon) {
-      final distance = calculateDistance(
-        center.latitude,
-        center.longitude,
-        vertex.latitude,
-        vertex.longitude,
-      );
-      if (distance > maxRadius) {
-        maxRadius = distance;
-      }
-    }
-
-    // 判断当前点是否在多边形外接圆内
-    final distanceToCenter = calculateDistance(
-      pointLat,
-      pointLon,
-      center.latitude,
-      center.longitude,
-    );
-
-    return distanceToCenter <= maxRadius;
   }
 }

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import '../models/track.dart';
 import '../models/track_record.dart';
 import '../models/track_point.dart';
@@ -33,10 +34,33 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
   double? _distanceToStart;
   double? _currentSpeed;
 
+  // 批量存储相关
+  final List<TrackPoint> _pendingPoints = []; // 待存储的轨迹点缓存
+  static const int _batchSize = 10; // 每10个点批量存储一次
+
   @override
   void initState() {
     super.initState();
+    _enableWakeLock(); // 启用屏幕常亮
     _checkStartPosition();
+  }
+
+  /// 启用屏幕常亮
+  Future<void> _enableWakeLock() async {
+    try {
+      await WakelockPlus.enable();
+    } catch (e) {
+      debugPrint('启用屏幕常亮失败: $e');
+    }
+  }
+
+  /// 禁用屏幕常亮
+  Future<void> _disableWakeLock() async {
+    try {
+      await WakelockPlus.disable();
+    } catch (e) {
+      debugPrint('禁用屏幕常亮失败: $e');
+    }
   }
 
   /// 检查起始位置
@@ -46,7 +70,7 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
       setState(() {
         _currentLatitude = location.latitude;
         _currentLongitude = location.longitude;
-        // 计算当前位置到起点多边形中心的距离
+        // 计算当前位置到起点多边形中心的距离（用于判断是否可以开始）
         final startCenter = LocationUtils.calculatePolygonCenter(
           widget.track.startPolygon,
         );
@@ -68,11 +92,11 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
 
   /// 开始跟跑
   Future<void> _startRunning() async {
-    // 验证是否在起点附近
-    if (_distanceToStart == null || _distanceToStart! > 50) {
+    // 验证是否在起点附近（300米内）
+    if (_distanceToStart == null || _distanceToStart! > 300) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('请前往起点附近再开始')));
+      ).showSnackBar(const SnackBar(content: Text('请前往起点附近再开始（300米内）')));
       return;
     }
 
@@ -132,7 +156,7 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
       _currentSpeed = location.speed;
     });
 
-    // 保存轨迹点
+    // 保存轨迹点到缓存
     if (_recordId != null) {
       final point = TrackPoint(
         recordId: _recordId!,
@@ -142,11 +166,18 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
         timestamp: location.timestamp.toIso8601String(),
         sequence: _pointSequence++,
       );
-      await _db.insertTrackPoint(point);
+
+      _pendingPoints.add(point);
+
+      // 批量存储：当缓存达到一定数量时写入数据库
+      if (_pendingPoints.length >= _batchSize) {
+        await _flushPoints();
+      }
 
       // 检查是否到达终点
       if (!_isTiming) {
         // 检查是否满足计时触发条件（在起点围栏内且速度>15km/h）
+        // 使用射线法判断点是否在起点多边形内
         final isInStartArea = LocationUtils.isPointInPolygon(
           pointLat: location.latitude,
           pointLon: location.longitude,
@@ -160,6 +191,7 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
         }
       } else {
         // 已经在计时中，检查是否到达终点
+        // 使用射线法判断点是否在终点多边形内
         final isInEndArea = LocationUtils.isPointInPolygon(
           pointLat: location.latitude,
           pointLon: location.longitude,
@@ -167,9 +199,25 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
         );
 
         if (isInEndArea) {
+          await _flushPoints(); // 停止前刷新所有缓存点
           _stopRunning(saveRecord: true);
         }
       }
+    }
+  }
+
+  /// 批量写入轨迹点到数据库
+  Future<void> _flushPoints() async {
+    if (_pendingPoints.isEmpty) return;
+
+    try {
+      // 批量插入
+      for (final point in _pendingPoints) {
+        await _db.insertTrackPoint(point);
+      }
+      _pendingPoints.clear();
+    } catch (e) {
+      debugPrint('批量存储轨迹点失败: $e');
     }
   }
 
@@ -184,12 +232,18 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
 
   /// 停止跟跑
   Future<void> _stopRunning({required bool saveRecord}) async {
+    // 先刷新所有缓存的轨迹点
+    await _flushPoints();
+
     // 停止定位
     await _locationSubscription?.cancel();
     await _locationService.stopLocation();
 
     // 停止计时器
     _timer?.cancel();
+
+    // 禁用屏幕常亮
+    await _disableWakeLock();
 
     if (saveRecord && _recordId != null) {
       // 更新轨迹记录为完成状态
@@ -232,6 +286,7 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
       _elapsedTime = 0;
       _recordId = null;
       _pointSequence = 0;
+      _pendingPoints.clear(); // 清空缓存
     });
 
     // 返回上一页
@@ -245,13 +300,15 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
     _timer?.cancel();
     _locationSubscription?.cancel();
     _locationService.stopLocation();
+    _disableWakeLock(); // 确保禁用屏幕常亮
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    // 开始按钮的触发条件：距离起点中心300米内
     final canStart =
-        !_isStarted && _distanceToStart != null && _distanceToStart! <= 50;
+        !_isStarted && _distanceToStart != null && _distanceToStart! <= 300;
 
     return Scaffold(
       appBar: AppBar(
@@ -313,7 +370,7 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
                           style: TextStyle(
                             color:
                                 _distanceToStart != null &&
-                                    _distanceToStart! <= 50
+                                    _distanceToStart! <= 300
                                 ? Colors.green
                                 : Colors.orange,
                             fontWeight: FontWeight.bold,
@@ -387,8 +444,8 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
             // 提示信息
             if (!_isStarted)
               Text(
-                _distanceToStart != null && _distanceToStart! > 50
-                    ? '您距离起点${_distanceToStart!.toStringAsFixed(0)}米，请前往起点附近（50米内）'
+                _distanceToStart != null && _distanceToStart! > 300
+                    ? '您距离起点${_distanceToStart!.toStringAsFixed(0)}米，请前往起点附近（300米内）'
                     : '准备就绪，点击开始按钮开始跟跑',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.grey[600], fontSize: 14),
