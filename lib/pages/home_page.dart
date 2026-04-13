@@ -112,6 +112,7 @@ class _HomePageState extends State<HomePage> {
                   },
                   tooltip: '车辆列表',
                 ),
+                const SizedBox(width: 8),
                 IconButton(
                   icon: const Icon(Icons.flag, color: Colors.white),
                   onPressed: () {

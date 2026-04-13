@@ -64,9 +64,17 @@ class TrackImportService {
 
   /// 从JSON数据保存赛道到数据库
   Future<void> _saveTrackFromJson(Map<String, dynamic> jsonData) async {
+    // 检查赛道是否已存在（根据名称）
+    final existingTracks = await _db.getAllTracks();
+    final trackName = jsonData['name'] as String;
+    if (existingTracks.any((t) => t.name == trackName)) {
+      print('赛道 "$trackName" 已存在，跳过导入');
+      return;
+    }
+
     // 解析赛道基本信息
     final track = Track(
-      name: jsonData['name'] as String,
+      name: trackName,
       description: jsonData['description'] as String?,
       length: (jsonData['length'] as num).toDouble(),
       startPolygon: _parsePolygon(jsonData['startPolygon'] as List<dynamic>),

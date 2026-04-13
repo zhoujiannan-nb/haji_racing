@@ -6,7 +6,6 @@ import '../models/track_point.dart';
 import '../database/database_helper.dart';
 import '../services/location_service.dart';
 import '../utils/location_utils.dart';
-import '../models/checkpoint.dart';
 
 class TrackRunningPage extends StatefulWidget {
   final Track track;
