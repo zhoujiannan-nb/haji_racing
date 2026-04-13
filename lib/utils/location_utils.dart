@@ -207,9 +207,10 @@ class LocationUtils {
     double x2,
     double y2,
   ) {
-    // 将经纬度转换为平面坐标进行计算（小范围内近似）
-    // 计算线段的长度平方
-    final l2 = _squaredDistance(x1, y1, x2, y2);
+    // 计算线段的长度平方（使用经纬度差值）
+    final dx = x2 - x1;
+    final dy = y2 - y1;
+    final l2 = dx * dx + dy * dy;
 
     // 如果线段长度为0，返回点到端点的距离
     if (l2 == 0) {
@@ -217,23 +218,16 @@ class LocationUtils {
     }
 
     // 计算投影参数 t
-    final t = ((pointLat - x1) * (x2 - x1) + (pointLon - y1) * (y2 - y1)) / l2;
+    final t = ((pointLat - x1) * dx + (pointLon - y1) * dy) / l2;
 
     // 限制 t 在 [0, 1] 范围内
     final tClamped = t.clamp(0.0, 1.0);
 
     // 计算线段上最近的点
-    final closestLat = x1 + tClamped * (x2 - x1);
-    final closestLon = y1 + tClamped * (y2 - y1);
+    final closestLat = x1 + tClamped * dx;
+    final closestLon = y1 + tClamped * dy;
 
-    // 返回点到最近点的距离
+    // 返回点到最近点的距离（使用Haversine公式精确计算）
     return calculateDistance(pointLat, pointLon, closestLat, closestLon);
-  }
-
-  /// 计算两点之间的平方距离（用于快速比较）
-  static double _squaredDistance(double x1, double y1, double x2, double y2) {
-    final dx = x2 - x1;
-    final dy = y2 - y1;
-    return dx * dx + dy * dy;
   }
 }
