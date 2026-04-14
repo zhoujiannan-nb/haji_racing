@@ -48,9 +48,22 @@ class _TrackDetailPageState extends State<TrackDetailPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF1A1A1A),
       appBar: AppBar(
-        title: Text(widget.track.name),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        backgroundColor: const Color(0xFF1A1A1A),
+        elevation: 0,
+        title: Text(
+          widget.track.name,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 24,
+          ),
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -58,73 +71,90 @@ class _TrackDetailPageState extends State<TrackDetailPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // 当前车辆信息卡片
-            Card(
-              color: Theme.of(context).colorScheme.primaryContainer,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.directions_car,
-                          color: Theme.of(context).colorScheme.primary,
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Colors.grey[900]!, Colors.grey[850]!],
+                ),
+                borderRadius: BorderRadius.circular(15),
+                border: Border.all(color: Colors.grey[800]!, width: 1),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.3),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.directions_car,
+                        color: Color(0xFFFF3D00),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        '当前车辆',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
                         ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '当前车辆',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onPrimaryContainer,
-                          ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (_isLoadingCar)
+                    const Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFFFF3D00),
+                      ),
+                    )
+                  else if (_currentCar != null)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _currentCar!.name,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'PP值: ${_currentCar!.calculatePP().toStringAsFixed(0)}',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[400],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const Icon(
+                          Icons.check_circle,
+                          color: Color(0xFFFF3D00),
+                          size: 28,
                         ),
                       ],
+                    )
+                  else
+                    Text(
+                      '暂无车辆',
+                      style: TextStyle(fontSize: 16, color: Colors.grey[500]),
                     ),
-                    const SizedBox(height: 12),
-                    if (_isLoadingCar)
-                      const Center(child: CircularProgressIndicator())
-                    else if (_currentCar != null)
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _currentCar!.name,
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'PP值: ${_currentCar!.calculatePP().toStringAsFixed(0)}',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey[700],
-                                ),
-                              ),
-                            ],
-                          ),
-                          Icon(
-                            Icons.check_circle,
-                            color: Theme.of(context).colorScheme.primary,
-                            size: 28,
-                          ),
-                        ],
-                      )
-                    else
-                      Text(
-                        '暂无车辆',
-                        style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                      ),
-                  ],
-                ),
+                ],
               ),
             ),
             const SizedBox(height: 16),
@@ -136,7 +166,11 @@ class _TrackDetailPageState extends State<TrackDetailPage> {
                 const SizedBox(width: 8),
                 const Text(
                   '赛道圈速榜',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
               ],
             ),
@@ -147,55 +181,65 @@ class _TrackDetailPageState extends State<TrackDetailPage> {
             const SizedBox(height: 24),
 
             // 赛道信息卡片
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.straighten, color: Colors.blue),
-                        const SizedBox(width: 8),
-                        Text(
-                          '赛道长度',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '${(widget.track.length / 1000).toStringAsFixed(2)} km',
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const Divider(height: 32),
-
-                    Row(
-                      children: [
-                        const Icon(Icons.description, color: Colors.blue),
-                        const SizedBox(width: 8),
-                        Text(
-                          '赛道简介',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      widget.track.description ?? '暂无简介',
-                      style: const TextStyle(fontSize: 16),
-                    ),
-                  ],
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Colors.grey[900]!, Colors.grey[850]!],
                 ),
+                borderRadius: BorderRadius.circular(15),
+                border: Border.all(color: Colors.grey[800]!, width: 1),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.3),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.straighten, color: Color(0xFFFF3D00)),
+                      const SizedBox(width: 8),
+                      Text(
+                        '赛道长度',
+                        style: TextStyle(fontSize: 14, color: Colors.grey[400]),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${(widget.track.length / 1000).toStringAsFixed(2)} km',
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const Divider(height: 32, color: Colors.grey),
+
+                  Row(
+                    children: [
+                      const Icon(Icons.description, color: Color(0xFFFF3D00)),
+                      const SizedBox(width: 8),
+                      Text(
+                        '赛道简介',
+                        style: TextStyle(fontSize: 14, color: Colors.grey[400]),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    widget.track.description ?? '暂无简介',
+                    style: const TextStyle(fontSize: 16, color: Colors.white),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 24),
@@ -203,7 +247,7 @@ class _TrackDetailPageState extends State<TrackDetailPage> {
             // 开始跟跑按钮
             SizedBox(
               width: double.infinity,
-              height: 50,
+              height: 56,
               child: ElevatedButton.icon(
                 onPressed: () {
                   Navigator.push(
@@ -214,11 +258,16 @@ class _TrackDetailPageState extends State<TrackDetailPage> {
                     ),
                   );
                 },
-                icon: const Icon(Icons.play_arrow),
-                label: const Text('开始跟跑', style: TextStyle(fontSize: 18)),
+                icon: const Icon(Icons.play_arrow, size: 28),
+                label: const Text(
+                  '开始跟跑',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  backgroundColor: const Color(0xFFFF3D00),
                   foregroundColor: Colors.white,
+                  elevation: 8,
+                  shadowColor: const Color(0xFFFF3D00).withOpacity(0.4),
                 ),
               ),
             ),

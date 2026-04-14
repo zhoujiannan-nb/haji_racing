@@ -166,7 +166,7 @@ class _LeaderboardWidgetState extends State<LeaderboardWidget> {
       return const Center(
         child: Padding(
           padding: EdgeInsets.all(32),
-          child: CircularProgressIndicator(),
+          child: CircularProgressIndicator(color: Color(0xFFFF3D00)),
         ),
       );
     }
@@ -178,16 +178,20 @@ class _LeaderboardWidgetState extends State<LeaderboardWidget> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.emoji_events, size: 64, color: Colors.grey[400]),
+              Icon(Icons.emoji_events, size: 64, color: Colors.grey[700]),
               const SizedBox(height: 16),
               Text(
                 '暂无圈速记录',
-                style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[400],
+                ),
               ),
               const SizedBox(height: 8),
               Text(
                 '完成一次跟跑后即可查看圈速榜',
-                style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
               ),
             ],
           ),
@@ -224,15 +228,21 @@ class _LeaderboardWidgetState extends State<LeaderboardWidget> {
                     ),
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? Theme.of(context).colorScheme.primary
-                          : Colors.grey[200],
+                          ? const Color(0xFFFF3D00)
+                          : Colors.grey[850],
                       borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isSelected
+                            ? const Color(0xFFFF3D00)
+                            : Colors.grey[700]!,
+                        width: 1,
+                      ),
                     ),
                     child: Center(
                       child: Text(
                         _getPpRangeText(ppGroup),
                         style: TextStyle(
-                          color: isSelected ? Colors.white : Colors.black87,
+                          color: isSelected ? Colors.white : Colors.grey[400],
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -250,7 +260,7 @@ class _LeaderboardWidgetState extends State<LeaderboardWidget> {
               ? Center(
                   child: Text(
                     '该PP组别暂无记录',
-                    style: TextStyle(color: Colors.grey[600]),
+                    style: TextStyle(color: Colors.grey[500]),
                   ),
                 )
               : ListView.builder(
@@ -279,13 +289,29 @@ class _LeaderboardWidgetState extends State<LeaderboardWidget> {
                       rankColor = const Color(0xFFCD7F32); // 铜色
                       medalIcon = Icons.emoji_events;
                     } else {
-                      rankColor = Colors.grey[600]!;
+                      rankColor = Colors.grey[500]!;
                     }
 
-                    return Card(
+                    return Container(
                       margin: const EdgeInsets.symmetric(
                         horizontal: 12,
-                        vertical: 4,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Colors.grey[900]!, Colors.grey[850]!],
+                        ),
+                        borderRadius: BorderRadius.circular(15),
+                        border: Border.all(color: Colors.grey[800]!, width: 1),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.3),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
                       child: ListTile(
                         leading: Container(
@@ -316,6 +342,7 @@ class _LeaderboardWidgetState extends State<LeaderboardWidget> {
                                 style: const TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
+                                  color: Colors.white,
                                 ),
                               ),
                             ),
@@ -326,14 +353,14 @@ class _LeaderboardWidgetState extends State<LeaderboardWidget> {
                                   car?.name ?? '默认车辆',
                                   style: TextStyle(
                                     fontSize: 14,
-                                    color: Colors.grey[600],
+                                    color: Colors.grey[400],
                                   ),
                                 ),
                                 Text(
                                   'PP: ${car?.calculatePP().toStringAsFixed(0) ?? 'N/A'}',
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: Colors.grey[500],
+                                    color: Colors.grey[600],
                                   ),
                                 ),
                               ],
@@ -403,11 +430,14 @@ class _LeaderboardWidgetState extends State<LeaderboardWidget> {
                           });
                         }
                       : null,
-                  icon: const Icon(Icons.chevron_left),
+                  icon: const Icon(
+                    Icons.chevron_left,
+                    color: Color(0xFFFF3D00),
+                  ),
                 ),
                 Text(
                   '第 ${_currentPage + 1} / ${_getTotalPages()} 页',
-                  style: const TextStyle(fontSize: 14),
+                  style: const TextStyle(fontSize: 14, color: Colors.white),
                 ),
                 IconButton(
                   onPressed: _currentPage < _getTotalPages() - 1
@@ -417,7 +447,10 @@ class _LeaderboardWidgetState extends State<LeaderboardWidget> {
                           });
                         }
                       : null,
-                  icon: const Icon(Icons.chevron_right),
+                  icon: const Icon(
+                    Icons.chevron_right,
+                    color: Color(0xFFFF3D00),
+                  ),
                 ),
               ],
             ),
