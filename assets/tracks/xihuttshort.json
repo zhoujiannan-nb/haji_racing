@@ -1,0 +1,45 @@
+{
+  "name": "西湖TT短道",
+  "description": "9800M,短道冲刺",
+  "length": 9800,
+  "startPolygon": [
+    {
+      "latitude": 30.175456,
+      "longitude": 120.097166
+    },
+    {
+      "latitude": 30.175124,
+      "longitude": 120.096167
+    },
+    {
+      "latitude": 30.177051,
+      "longitude": 120.095571
+    },
+    {
+      "latitude": 30.177277,
+      "longitude": 120.096673
+    }
+  ],
+  "endPolygon": [
+    {
+      "latitude": 30.241,
+      "longitude": 120.112798
+    },
+    {
+      "latitude": 30.240248,
+      "longitude": 120.112584
+    },
+    {
+      "latitude": 30.239959,
+      "longitude": 120.113949
+    },
+    {
+      "latitude": 30.240711,
+      "longitude": 120.114284
+    }
+  ],
+  "thumbnailUrl": null,
+  "publishedAt": "2026-04-14T08:55:56.789Z",
+  "createdAt": "2026-04-14T08:55:56.789Z",
+  "checkPoints": []
+}

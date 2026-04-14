@@ -1,0 +1,45 @@
+{
+  "name": "内测道路",
+  "description": "测试专用",
+  "length": 3500,
+  "startPolygon": [
+    {
+      "latitude": 30.178781,
+      "longitude": 120.153672
+    },
+    {
+      "latitude": 30.178372,
+      "longitude": 120.153536
+    },
+    {
+      "latitude": 30.178762,
+      "longitude": 120.152232
+    },
+    {
+      "latitude": 30.179202,
+      "longitude": 120.15255
+    }
+  ],
+  "endPolygon": [
+    {
+      "latitude": 30.164824,
+      "longitude": 120.155499
+    },
+    {
+      "latitude": 30.164423,
+      "longitude": 120.155795
+    },
+    {
+      "latitude": 30.165146,
+      "longitude": 120.15697
+    },
+    {
+      "latitude": 30.165528,
+      "longitude": 120.156773
+    }
+  ],
+  "thumbnailUrl": null,
+  "publishedAt": "2026-04-14T09:07:26.678Z",
+  "createdAt": "2026-04-14T09:07:26.678Z",
+  "checkPoints": []
+}

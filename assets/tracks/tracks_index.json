@@ -2,8 +2,11 @@
   "version": "1.0",
   "description": "赛道索引文件，列出所有可用的赛道JSON文件",
   "tracks": [
-    "yunshi_new.json",
-    "yunshi_stand.json",
-    "test_home.json"
+    "yunshi_sprint.json",
+    "yunshi_enduro.json",
+    "tianhuang.json",
+    "xihuttshort.json",
+    "xihuttlong.json",
+    "test_road.json"
   ]
 }
