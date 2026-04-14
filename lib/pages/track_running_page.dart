@@ -1,9 +1,10 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../models/track.dart';
 import '../models/track_record.dart';
-import '../models/track_point.dart';
 import '../database/database_helper.dart';
 import '../services/location_service.dart';
 import '../utils/location_utils.dart';
@@ -28,6 +29,8 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
   bool _isTiming = false;
   bool _isInStartArea = false; // 是否已进入起点区域
   bool _isStopping = false; // 是否正在停止过程中（用于UI提示）
+  bool _showLocationIndicator = false; // 是否显示定位灯
+  bool _isLocationReady = false; // GPS是否已就绪（预热完成）
   double _elapsedTime = 0;
   Timer? _timer;
   StreamSubscription<LocationData>? _locationSubscription;
@@ -41,15 +44,16 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
   double? _currentSpeed;
   double _totalDistance = 0; // 累计距离（米）
 
-  // 批量存储相关
-  final List<TrackPoint> _pendingPoints = []; // 待存储的轨迹点缓存
-  static const int _batchSize = 10; // 每10个点批量存储一次
+  // JSON轨迹数据相关
+  List<Map<String, dynamic>> _trajectoryPoints = []; // 轨迹点列表
+  String? _trajectoryFilePath; // 临时JSON文件路径
 
   @override
   void initState() {
     super.initState();
     _enableWakeLock(); // 启用屏幕常亮
     _checkStartPosition();
+    _startLocationPreheat(); // 启动GPS预热
   }
 
   /// 启用屏幕常亮
@@ -67,6 +71,63 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
       await WakelockPlus.disable();
     } catch (e) {
       debugPrint('禁用屏幕常亮失败: $e');
+    }
+  }
+
+  /// 启动GPS预热（提前开始连续定位，但不记录数据）
+  /// 开始GPS预热
+  ///
+  /// 在页面初始化时调用，提前启动定位服务
+  /// 目的：
+  /// 1. 让用户进入页面后就能看到当前位置和距离信息
+  /// 2. 确保点击"开始跟跑"时GPS已经就绪
+  /// 3. 此时不会创建记录，也不会保存轨迹点到文件
+  Future<void> _startLocationPreheat() async {
+    try {
+      // 开始连续定位，但此时 _recordId 为 null，所以不会记录数据
+      _locationSubscription = _locationService.startContinuousLocation().listen(
+        (location) {
+          if (!mounted) return;
+
+          // 更新当前位置信息（用于显示和距离计算）
+          setState(() {
+            _currentLatitude = location.latitude;
+            _currentLongitude = location.longitude;
+            _currentSpeed = location.speed;
+            _isLocationReady = true; // 标记GPS已就绪
+
+            // 更新到起点的距离
+            _distanceToStart = LocationUtils.getDistanceToPolygon(
+              pointLat: location.latitude,
+              pointLon: location.longitude,
+              polygon: widget.track.startPolygon,
+            );
+
+            // 更新到终点的距离
+            _distanceToEnd = LocationUtils.getDistanceToPolygon(
+              pointLat: location.latitude,
+              pointLon: location.longitude,
+              polygon: widget.track.endPolygon,
+            );
+
+            // 触发定位灯闪烁效果（让用户知道GPS在工作）
+            _triggerLocationIndicator();
+          });
+
+          // 如果已经开始跟跑，则处理定位数据
+          // 注意：只有当 _recordId != null 且满足条件时才会记录轨迹点
+          if (_isStarted && _recordId != null) {
+            _handleLocationUpdate(location);
+          }
+        },
+        onError: (error) {
+          if (mounted) {
+            debugPrint('定位错误: $error');
+          }
+        },
+      );
+    } catch (e) {
+      debugPrint('GPS预热失败: $e');
     }
   }
 
@@ -103,6 +164,10 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
   }
 
   /// 开始跟跑
+  ///
+  /// 用户点击"开始跟跑"按钮时调用
+  /// 此时会创建数据库记录，但不会立即开始计时和记录轨迹点
+  /// 真正的计时和记录要等到满足条件（起点区域内 + 速度>15km/h）才开始
   Future<void> _startRunning() async {
     // 验证是否在起点附近（到起点多边形边500米内）
     if (_distanceToStart == null || _distanceToStart! > 500) {
@@ -112,11 +177,18 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
       return;
     }
 
+    // 检查GPS是否已就绪
+    if (!_isLocationReady) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('GPS信号准备中，请稍候...')));
+      return;
+    }
+
     try {
       if (mounted) {
-        // 检查组件是否仍然挂载
         setState(() {
-          _isStarted = true;
+          _isStarted = true; // 标记为已开始状态
         });
       }
 
@@ -129,7 +201,8 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
       // 获取主车辆
       final mainCar = await _db.getMainCar();
 
-      // 创建轨迹记录
+      // 创建轨迹记录（初始状态为incomplete）
+      // 注意：此时只是创建了记录，还没有开始计时和记录轨迹点
       final record = TrackRecord(
         userId: user.id!,
         trackId: widget.track.id!,
@@ -141,6 +214,8 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
       _recordId = await _db.createTrackRecord(record);
       _pointSequence = 0;
 
+      debugPrint('📝 创建轨迹记录，ID: $_recordId');
+
       // 请求通知权限并显示跑步通知
       if (mounted) {
         await _notificationService.requestPermissions();
@@ -151,22 +226,9 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
         );
       }
 
-      // 开始连续定位
-      _locationSubscription = _locationService.startContinuousLocation().listen(
-        (location) {
-          _handleLocationUpdate(location);
-        },
-        onError: (error) {
-          if (mounted) {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text('定位错误: $error')));
-            _stopRunning(saveRecord: false);
-          }
-        },
-      );
-
-      // 注意：计时器不在这里启动，而是在真正进入起点区域且速度>15km/h时才启动
+      // 注意：定位订阅已经在 _startLocationPreheat 中启动
+      // 现在 _recordId 已设置，_handleLocationUpdate 会开始处理定位数据
+      // 但只有当满足条件时才会真正开始计时和记录轨迹点
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -178,6 +240,13 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
   }
 
   /// 处理定位更新
+  ///
+  /// 核心逻辑：
+  /// 1. 持续接收GPS定位数据，用于UI显示和距离计算
+  /// 2. 只有当满足以下条件时才开始计时并记录轨迹点到文件：
+  ///    - 已进入起点区域（在起点多边形内）
+  ///    - 速度 > 15 km/h
+  /// 3. 到达终点区域时自动停止并保存数据
   Future<void> _handleLocationUpdate(LocationData location) async {
     if (!mounted || _isStopping) return; // 如果组件已销毁或正在停止则直接返回
 
@@ -199,72 +268,75 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
         pointLon: location.longitude,
         polygon: widget.track.endPolygon,
       );
+
+      // 触发定位灯闪烁效果
+      _triggerLocationIndicator();
     });
 
-    // 保存轨迹点到缓存
-    if (_recordId != null) {
-      final point = TrackPoint(
-        recordId: _recordId!,
-        latitude: location.latitude,
-        longitude: location.longitude,
-        speed: location.speed,
-        timestamp: location.timestamp.toIso8601String(),
-        sequence: _pointSequence++,
+    // 检查是否满足计时触发条件（在起点围栏内且速度>15km/h）
+    if (!_isTiming) {
+      // 检查是否在起点区域内
+      final isInStartArea = LocationUtils.isPointInPolygon(
+        pointLat: location.latitude,
+        pointLon: location.longitude,
+        polygon: widget.track.startPolygon,
       );
 
-      _pendingPoints.add(point);
-
-      // 批量存储：当缓存达到一定数量时写入数据库
-      if (_pendingPoints.length >= _batchSize) {
-        await _flushPoints();
-      }
-
-      // 检查是否到达终点
-      if (!_isTiming) {
-        // 检查是否在起点区域内
-        final isInStartArea = LocationUtils.isPointInPolygon(
-          pointLat: location.latitude,
-          pointLon: location.longitude,
-          polygon: widget.track.startPolygon,
-        );
-
-        // 更新进入起点区域的状态
-        if (isInStartArea != _isInStartArea) {
-          if (mounted) {
-            // 检查组件是否仍然挂载
-            setState(() {
-              _isInStartArea = isInStartArea;
-            });
-          }
-        }
-
-        // 检查是否满足计时触发条件（在起点围栏内且速度>15km/h）
-        if (isInStartArea && (location.speed ?? 0) > 15) {
-          if (mounted) {
-            // 检查组件是否仍然挂载
-            setState(() {
-              _isTiming = true;
-            });
-            // 真正开始计时
-            _startTimer();
-          }
-        }
-      } else {
-        // 已经在计时中，检查是否到达终点
-        // 使用射线法判断点是否在终点多边形内
-        final isInEndArea = LocationUtils.isPointInPolygon(
-          pointLat: location.latitude,
-          pointLon: location.longitude,
-          polygon: widget.track.endPolygon,
-        );
-
-        if (isInEndArea) {
-          await _flushPoints(); // 停止前刷新所有缓存点
-          if (mounted) {
-            _stopRunning(saveRecord: true);
-          }
+      // 更新进入起点区域的状态
+      if (isInStartArea != _isInStartArea) {
+        if (mounted) {
+          setState(() {
+            _isInStartArea = isInStartArea;
+          });
         }
       }
+
+      // 检查是否满足计时触发条件（在起点围栏内且速度>15km/h）
+      // 只有同时满足这两个条件才开始计时和记录轨迹点
+      if (isInStartArea && (location.speed ?? 0) > 15) {
+        if (mounted) {
+          setState(() {
+            _isTiming = true;
+          });
+          // 真正开始计时
+          _startTimer();
+          debugPrint(
+            '✅ 开始计时！位置: 起点区域内, 速度: ${location.speed?.toStringAsFixed(1)} km/h',
+          );
+        }
+      }
+    } else {
+      // 已经在计时中，检查是否到达终点
+      // 使用射线法判断点是否在终点多边形内
+      final isInEndArea = LocationUtils.isPointInPolygon(
+        pointLat: location.latitude,
+        pointLon: location.longitude,
+        polygon: widget.track.endPolygon,
+      );
+
+      if (isInEndArea) {
+        if (mounted) {
+          debugPrint('🏁 到达终点区域，自动停止！');
+          _stopRunning(saveRecord: true);
+        }
+      }
+    }
+
+    // ⚠️ 关键逻辑：只有在计时中才保存轨迹点到JSON文件
+    // 这样确保只记录有效比赛过程中的轨迹点
+    if (_isTiming && _recordId != null) {
+      final pointData = {
+        'latitude': location.latitude,
+        'longitude': location.longitude,
+        'speed': location.speed,
+        'timestamp': location.timestamp.toIso8601String(),
+        'sequence': _pointSequence++,
+      };
+
+      _trajectoryPoints.add(pointData);
+
+      // 实时追加写入到临时文件
+      await _appendPointToFile(pointData);
     }
 
     // 更新通知（每秒更新一次）
@@ -273,18 +345,84 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
     }
   }
 
-  /// 批量写入轨迹点到数据库
-  Future<void> _flushPoints() async {
-    if (_pendingPoints.isEmpty) return;
+  /// 触发定位灯闪烁效果
+  void _triggerLocationIndicator() {
+    if (!mounted) return;
+
+    setState(() {
+      _showLocationIndicator = true;
+    });
+
+    // 300ms后隐藏定位灯
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        setState(() {
+          _showLocationIndicator = false;
+        });
+      }
+    });
+  }
+
+  /// 追加轨迹点到临时JSON文件
+  Future<void> _appendPointToFile(Map<String, dynamic> pointData) async {
+    try {
+      // 如果还没有创建临时文件，则创建
+      if (_trajectoryFilePath == null) {
+        final tempDir = Directory.systemTemp;
+        _trajectoryFilePath =
+            '${tempDir.path}/trajectory_${_recordId}_${DateTime.now().millisecondsSinceEpoch}.json';
+
+        // 创建初始JSON文件
+        final initialData = {
+          'points': [pointData],
+        };
+        final file = File(_trajectoryFilePath!);
+        await file.writeAsString(jsonEncode(initialData));
+      } else {
+        // 读取现有JSON数据
+        final file = File(_trajectoryFilePath!);
+        String content = await file.readAsString();
+        Map<String, dynamic> jsonData = jsonDecode(content);
+
+        // 添加新点
+        List<dynamic> points = jsonData['points'] ?? [];
+        points.add(pointData);
+        jsonData['points'] = points;
+
+        // 写回文件
+        await file.writeAsString(jsonEncode(jsonData));
+      }
+    } catch (e) {
+      debugPrint('追加轨迹点到文件失败: $e');
+    }
+  }
+
+  /// 将JSON文件中的轨迹数据保存到数据库
+  Future<void> _saveTrajectoryToDatabase() async {
+    if (_trajectoryFilePath == null ||
+        !File(_trajectoryFilePath!).existsSync()) {
+      return;
+    }
 
     try {
-      // 批量插入
-      for (final point in _pendingPoints) {
-        await _db.insertTrackPoint(point);
+      // 读取JSON文件内容
+      final file = File(_trajectoryFilePath!);
+      String content = await file.readAsString();
+
+      // 更新记录中的trajectoryJson字段
+      if (_recordId != null) {
+        final record = await _db.getTrackRecord(_recordId!);
+        if (record != null) {
+          await _db.updateTrackRecord(record.copyWith(trajectoryJson: content));
+        }
       }
-      _pendingPoints.clear();
+
+      // 删除临时文件
+      await file.delete();
+      _trajectoryFilePath = null;
+      _trajectoryPoints.clear();
     } catch (e) {
-      debugPrint('批量存储轨迹点失败: $e');
+      debugPrint('保存轨迹数据到数据库失败: $e');
     }
   }
 
@@ -326,6 +464,14 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
   }
 
   /// 停止跟跑
+  ///
+  /// 两种情况会调用此方法：
+  /// 1. 自动停止：到达终点区域
+  /// 2. 手动停止：用户点击"结束并保存"按钮
+  ///
+  /// 参数说明：
+  /// - saveRecord: 是否保存记录（false则删除不完整的记录）
+  /// - manuallyStopped: 是否为手动停止（用于标记记录状态）
   Future<void> _stopRunning({
     required bool saveRecord,
     bool manuallyStopped = false,
@@ -336,6 +482,8 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
         _isStopping = true;
       });
     }
+
+    debugPrint(manuallyStopped ? '🛑 手动停止' : '✅ 自动停止（到达终点）');
 
     // 立即取消订阅和计时器，避免继续接收数据和计时
     await _locationSubscription?.cancel();
@@ -359,13 +507,21 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
   }
 
   /// 后台保存跑步数据
+  ///
+  /// 此方法在停止跟跑后异步执行，不阻塞UI
+  /// 主要完成以下工作：
+  /// 1. 将JSON轨迹文件中的数据保存到数据库
+  /// 2. 更新记录状态（completed/incomplete）
+  /// 3. 清理资源（通知、屏幕常亮等）
+  /// 4. 返回上一页
   Future<void> _saveRunningData({
     required bool saveRecord,
     bool manuallyStopped = false,
   }) async {
     try {
-      // 刷新所有缓存的轨迹点
-      await _flushPoints();
+      // 保存JSON轨迹数据到数据库
+      // 这会将临时文件中的轨迹点JSON字符串保存到track_records表的trajectoryJson字段
+      await _saveTrajectoryToDatabase();
 
       // 停止定位服务
       await _locationService.stopLocation();
@@ -379,13 +535,14 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
       await _disableWakeLock();
 
       if (saveRecord && _recordId != null) {
-        // 更新轨迹记录为完成状态
+        // 更新轨迹记录的状态和结束时间
         final record = await _db.getTrackRecord(_recordId!);
         if (record != null) {
           await _db.updateTrackRecord(
             record.copyWith(
               endTime: DateTime.now().toIso8601String(),
               duration: _elapsedTime,
+              // 手动停止标记为incomplete，自动到达终点标记为completed
               status: manuallyStopped ? 'incomplete' : 'completed',
               manuallyStopped: manuallyStopped,
             ),
@@ -394,16 +551,16 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
 
         debugPrint(
           manuallyStopped
-              ? '已手动停止！用时: ${LocationUtils.formatDuration(_elapsedTime)}（未完成）'
-              : '完成！用时: ${LocationUtils.formatDuration(_elapsedTime)}',
+              ? '⚠️ 已手动停止！用时: ${LocationUtils.formatDuration(_elapsedTime)}（未完成）'
+              : '✅ 完成！用时: ${LocationUtils.formatDuration(_elapsedTime)}',
         );
       } else {
-        // 删除不完整的记录
+        // 删除不完整的记录（例如用户未开始就退出）
         if (_recordId != null) {
           await _db.deleteTrackRecord(_recordId!);
         }
 
-        debugPrint('已停止，本次轨迹未保存');
+        debugPrint('❌ 已停止，本次轨迹未保存');
       }
     } catch (e) {
       debugPrint('保存跑步数据失败: $e');
@@ -522,6 +679,61 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
               ),
               child: Column(
                 children: [
+                  // 定位灯指示器
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '定位状态',
+                        style: TextStyle(color: Colors.grey[400], fontSize: 14),
+                      ),
+                      Row(
+                        children: [
+                          if (!_isLocationReady && !_isStarted)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: Text(
+                                'GPS预热中...',
+                                style: TextStyle(
+                                  color: Colors.orange,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          AnimatedOpacity(
+                            opacity: _showLocationIndicator ? 1.0 : 0.3,
+                            duration: const Duration(milliseconds: 150),
+                            child: Container(
+                              width: 12,
+                              height: 12,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: _showLocationIndicator
+                                    ? (_isLocationReady
+                                          ? Colors.green
+                                          : Colors.orange)
+                                    : Colors.grey[600],
+                                boxShadow: _showLocationIndicator
+                                    ? [
+                                        BoxShadow(
+                                          color:
+                                              (_isLocationReady
+                                                      ? Colors.green
+                                                      : Colors.orange)
+                                                  .withOpacity(0.6),
+                                          blurRadius: 8,
+                                          spreadRadius: 2,
+                                        ),
+                                      ]
+                                    : null,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
                   // 停止中提示
                   if (_isStopping)
                     Padding(

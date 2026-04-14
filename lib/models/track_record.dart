@@ -8,6 +8,7 @@ class TrackRecord {
   final double? duration;
   final String status; // incomplete or completed
   final bool manuallyStopped; // 是否手动停止
+  final String? trajectoryJson; // JSON格式的轨迹数据
 
   TrackRecord({
     this.id,
@@ -19,6 +20,7 @@ class TrackRecord {
     this.duration,
     this.status = 'incomplete',
     this.manuallyStopped = false,
+    this.trajectoryJson,
   });
 
   Map<String, dynamic> toMap() {
@@ -32,6 +34,7 @@ class TrackRecord {
       'duration': duration,
       'status': status,
       'manuallyStopped': manuallyStopped ? 1 : 0,
+      'trajectoryJson': trajectoryJson,
     };
   }
 
@@ -47,6 +50,7 @@ class TrackRecord {
       status: map['status'],
       manuallyStopped:
           map['manuallyStopped'] == 1 || map['manuallyStopped'] == true,
+      trajectoryJson: map['trajectoryJson'],
     );
   }
 
@@ -60,6 +64,7 @@ class TrackRecord {
     double? duration,
     String? status,
     bool? manuallyStopped,
+    String? trajectoryJson,
   }) {
     return TrackRecord(
       id: id ?? this.id,
@@ -71,6 +76,7 @@ class TrackRecord {
       duration: duration ?? this.duration,
       status: status ?? this.status,
       manuallyStopped: manuallyStopped ?? this.manuallyStopped,
+      trajectoryJson: trajectoryJson ?? this.trajectoryJson,
     );
   }
 }

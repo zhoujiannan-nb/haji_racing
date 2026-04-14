@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:geolocator_android/geolocator_android.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 /// 定位数据模型
@@ -59,27 +61,56 @@ class LocationService {
 
     _isListening = true;
 
-    // 设置定位选项 - 优化用于后台/锁屏场景
-    const locationSettings = LocationSettings(
+    // 设置定位选项 - 优化用于跑步场景的高频定位（1秒一次）
+    final locationSettings = LocationSettings(
       accuracy: LocationAccuracy.best,
       distanceFilter: 0, // 0表示每次位置变化都上报
+      timeLimit: const Duration(seconds: 5), // 超时时间
     );
 
-    try {
-      await for (final position in Geolocator.getPositionStream(
-        locationSettings: locationSettings,
-      )) {
-        yield LocationData(
-          latitude: position.latitude,
-          longitude: position.longitude,
-          speed: position.speed * 3.6, // m/s 转 km/h
-          timestamp: position.timestamp,
-        );
+    // Android平台特定配置：设置1秒间隔
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      final androidSettings = AndroidSettings(
+        accuracy: LocationAccuracy.best,
+        distanceFilter: 0,
+        intervalDuration: const Duration(seconds: 1), // 1秒一次定位
+        forceLocationManager: false, // 使用FusedLocationProvider
+      );
+
+      try {
+        await for (final position in Geolocator.getPositionStream(
+          locationSettings: androidSettings,
+        )) {
+          yield LocationData(
+            latitude: position.latitude,
+            longitude: position.longitude,
+            speed: position.speed * 3.6, // m/s 转 km/h
+            timestamp: position.timestamp,
+          );
+        }
+      } catch (e) {
+        throw Exception('定位失败: $e');
+      } finally {
+        _isListening = false;
       }
-    } catch (e) {
-      throw Exception('定位失败: $e');
-    } finally {
-      _isListening = false;
+    } else {
+      // iOS和其他平台使用通用配置
+      try {
+        await for (final position in Geolocator.getPositionStream(
+          locationSettings: locationSettings,
+        )) {
+          yield LocationData(
+            latitude: position.latitude,
+            longitude: position.longitude,
+            speed: position.speed * 3.6, // m/s 转 km/h
+            timestamp: position.timestamp,
+          );
+        }
+      } catch (e) {
+        throw Exception('定位失败: $e');
+      } finally {
+        _isListening = false;
+      }
     }
   }
 

@@ -355,7 +355,7 @@ class _TrackRecordDetailPageState extends State<TrackRecordDetailPage> {
                           Icons.trending_up,
                           '最大速度',
                           _getMaxSpeed() != null
-                              ? '${(_getMaxSpeed()! * 3.6).toStringAsFixed(2)} km/h'
+                              ? '${_getMaxSpeed()!.toStringAsFixed(2)} km/h'
                               : '--',
                         ),
                         const SizedBox(height: 16),

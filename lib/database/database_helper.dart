@@ -26,7 +26,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 8,
+      version: 9,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -114,6 +114,7 @@ class DatabaseHelper {
         duration REAL,
         status TEXT NOT NULL DEFAULT 'incomplete',
         manuallyStopped INTEGER DEFAULT 0,
+        trajectoryJson TEXT,
         FOREIGN KEY (userId) REFERENCES users(id),
         FOREIGN KEY (trackId) REFERENCES tracks(id),
         FOREIGN KEY (carId) REFERENCES cars(id)
@@ -234,6 +235,18 @@ class DatabaseHelper {
       } catch (e) {
         // 如果字段已存在，忽略错误
         print('manuallyStopped字段可能已存在: $e');
+      }
+    }
+
+    if (oldVersion < 9) {
+      // 版本8升级到版本9：添加trajectoryJson字段用于存储JSON格式的轨迹数据
+      try {
+        await db.execute(
+          'ALTER TABLE track_records ADD COLUMN trajectoryJson TEXT',
+        );
+      } catch (e) {
+        // 如果字段已存在，忽略错误
+        print('trajectoryJson字段可能已存在: $e');
       }
     }
   }
