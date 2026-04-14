@@ -70,22 +70,32 @@ class RunningNotificationService {
       'running_channel',
       '跑步状态',
       channelDescription: '显示跑步过程中的实时状态',
-      importance: Importance.high,
-      priority: Priority.high,
+      importance: Importance.max,
+      priority: Priority.max,
       ongoing: true, // 持续通知，不能被滑动清除
       autoCancel: false,
       showWhen: true,
       when: DateTime.now().millisecondsSinceEpoch,
+      // 使用大文本样式在锁屏上显示更多信息
       styleInformation: BigTextStyleInformation(
-        '',
+        '时间: $elapsedTime\n距离: ${distance.toStringAsFixed(2)} km\n速度: ${speed.toStringAsFixed(1)} km/h',
         contentTitle: '🏃 跟跑进行中',
-        summaryText: '点击查看详细信息',
+        summaryText: '点击返回应用',
+        htmlFormatContent: false,
+        htmlFormatTitle: false,
       ),
       // 添加操作按钮
       actions: <AndroidNotificationAction>[
-        AndroidNotificationAction('pause', '暂停', showsUserInterface: false),
-        AndroidNotificationAction('stop', '停止', showsUserInterface: false),
+        AndroidNotificationAction(
+          'stop',
+          '停止',
+          showsUserInterface: false,
+          cancelNotification: false,
+        ),
       ],
+      // 确保在锁屏上可见
+      category: AndroidNotificationCategory.service,
+      visibility: NotificationVisibility.public,
     );
 
     // iOS 通知配置

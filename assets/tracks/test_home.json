@@ -1,77 +1,45 @@
 {
-  "name": "测试上班",
-  "description": "111",
-  "length": 11111,
+  "name": "测试",
+  "description": "1",
+  "length": 1,
   "startPolygon": [
     {
-      "latitude": 30.165008,
-      "longitude": 120.15604
+      "latitude": 30.179522,
+      "longitude": 120.154172
     },
     {
-      "latitude": 30.164738,
-      "longitude": 120.15548
+      "latitude": 30.17856,
+      "longitude": 120.154076
     },
     {
-      "latitude": 30.164475,
-      "longitude": 120.155071
+      "latitude": 30.178511,
+      "longitude": 120.155065
     },
     {
-      "latitude": 30.164215,
-      "longitude": 120.155191
-    },
-    {
-      "latitude": 30.164433,
-      "longitude": 120.155656
-    },
-    {
-      "latitude": 30.164734,
-      "longitude": 120.15614
+      "latitude": 30.179674,
+      "longitude": 120.155101
     }
   ],
   "endPolygon": [
     {
-      "latitude": 30.178596,
-      "longitude": 120.154034
+      "latitude": 30.178339,
+      "longitude": 120.156655
     },
     {
-      "latitude": 30.178848,
-      "longitude": 120.154051
+      "latitude": 30.177697,
+      "longitude": 120.156547
     },
     {
-      "latitude": 30.179159,
-      "longitude": 120.154072
+      "latitude": 30.177639,
+      "longitude": 120.157832
     },
     {
-      "latitude": 30.179351,
-      "longitude": 120.15411
-    },
-    {
-      "latitude": 30.179333,
-      "longitude": 120.154504
-    },
-    {
-      "latitude": 30.17926,
-      "longitude": 120.154793
-    },
-    {
-      "latitude": 30.178987,
-      "longitude": 120.154799
-    },
-    {
-      "latitude": 30.178795,
-      "longitude": 120.154773
-    },
-    {
-      "latitude": 30.17852,
-      "longitude": 120.154717
-    },
-    {
-      "latitude": 30.178356,
-      "longitude": 120.154411
+      "latitude": 30.178216,
+      "longitude": 120.15784
     }
   ],
   "thumbnailUrl": null,
-  "publishedAt": "2026-04-13T16:51:17.984Z",
-  "createdAt": "2026-04-13T16:51:17.984Z",
+  "publishedAt": "2026-04-14T01:15:40.001Z",
+  "createdAt": "2026-04-14T01:15:40.019Z",
   "checkPoints": []
 }
