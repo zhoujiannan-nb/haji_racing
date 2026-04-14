@@ -438,8 +438,9 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
           if (_isStarted)
             IconButton(
               icon: const Icon(Icons.stop),
-              onPressed: () =>
-                  _stopRunning(saveRecord: true, manuallyStopped: true),
+              onPressed: _isStopping
+                  ? null
+                  : () => _stopRunning(saveRecord: true, manuallyStopped: true),
               tooltip: '手动停止',
             ),
         ],
@@ -613,12 +614,19 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton.icon(
-                  onPressed: () =>
-                      _stopRunning(saveRecord: true, manuallyStopped: true),
+                  onPressed: _isStopping
+                      ? null
+                      : () => _stopRunning(
+                          saveRecord: true,
+                          manuallyStopped: true,
+                        ),
                   icon: const Icon(Icons.stop, size: 28),
-                  label: const Text('结束并保存', style: TextStyle(fontSize: 18)),
+                  label: Text(
+                    _isStopping ? '保存中...' : '结束并保存',
+                    style: const TextStyle(fontSize: 18),
+                  ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
+                    backgroundColor: _isStopping ? Colors.grey : Colors.red,
                     foregroundColor: Colors.white,
                   ),
                 ),
