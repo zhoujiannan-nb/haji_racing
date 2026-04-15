@@ -2,7 +2,7 @@
   "name": "内测道路",
   "description": "测试专用",
   "length": 3500,
-  "endPolygon": [
+  "startPolygon": [
     {
       "latitude": 30.178781,
       "longitude": 120.153672
@@ -20,7 +20,7 @@
       "longitude": 120.15255
     }
   ],
-  "startPolygon": [
+  "endPolygon": [
     {
       "latitude": 30.164824,
       "longitude": 120.155499
