@@ -733,425 +733,506 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
     final canStart =
         !_isStarted && _distanceToStart != null && _distanceToStart! <= 500;
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF1A1A1A),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF1A1A1A),
-        elevation: 0,
-        title: Text(
-          widget.track.name,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-        actions: [
-          if (_isStarted)
-            IconButton(
-              icon: const Icon(Icons.stop, color: Colors.red),
-              onPressed: _isStopping
-                  ? null
-                  : () => _stopRunning(saveRecord: true, manuallyStopped: true),
-              tooltip: '手动停止',
-            ),
-        ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // 用时显示
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(32),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Colors.grey[900]!, Colors.grey[850]!],
-                ),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: const Color(0xFFFF3D00).withOpacity(0.3),
-                  width: 2,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFFFF3D00).withOpacity(0.2),
-                    blurRadius: 20,
-                    spreadRadius: 2,
-                  ),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+
+        // 如果已经开始跟跑，显示确认对话框
+        if (_isStarted) {
+          final shouldPop = await showDialog<bool>(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => AlertDialog(
+              backgroundColor: const Color(0xFF2C2C2C),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15),
+              ),
+              title: const Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded, color: Colors.orange),
+                  SizedBox(width: 8),
+                  Text('确认退出？', style: TextStyle(color: Colors.white)),
                 ],
               ),
-              child: Column(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    '用时',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    '当前正在跟跑中，退出将：',
+                    style: TextStyle(color: Colors.white, fontSize: 14),
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    LocationUtils.formatDuration(_elapsedTime),
-                    style: const TextStyle(
-                      fontSize: 56,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: 'monospace',
-                      color: Color(0xFFFF3D00),
-                    ),
+                    '• 停止计时（当前用时：${LocationUtils.formatDuration(_elapsedTime)})',
+                    style: TextStyle(color: Colors.grey[300], fontSize: 13),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '• 自动保存已记录的轨迹数据',
+                    style: TextStyle(color: Colors.grey[300], fontSize: 13),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '• 标记为“未完成”状态',
+                    style: TextStyle(color: Colors.orange, fontSize: 13),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 24),
-
-            // 状态信息
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.grey[900],
-                borderRadius: BorderRadius.circular(15),
-                border: Border.all(color: Colors.grey[800]!, width: 1),
-              ),
-              child: Column(
-                children: [
-                  // 定位灯指示器
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '定位状态',
-                        style: TextStyle(color: Colors.grey[400], fontSize: 14),
-                      ),
-                      Row(
-                        children: [
-                          if (!_isLocationReady && !_isStarted)
-                            Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: Text(
-                                'GPS预热中...',
-                                style: TextStyle(
-                                  color: Colors.orange,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                          AnimatedOpacity(
-                            opacity: _showLocationIndicator ? 1.0 : 0.3,
-                            duration: const Duration(milliseconds: 150),
-                            child: Container(
-                              width: 12,
-                              height: 12,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: _showLocationIndicator
-                                    ? (_isLocationReady
-                                          ? Colors.green
-                                          : Colors.orange)
-                                    : Colors.grey[600],
-                                boxShadow: _showLocationIndicator
-                                    ? [
-                                        BoxShadow(
-                                          color:
-                                              (_isLocationReady
-                                                      ? Colors.green
-                                                      : Colors.orange)
-                                                  .withOpacity(0.6),
-                                          blurRadius: 8,
-                                          spreadRadius: 2,
-                                        ),
-                                      ]
-                                    : null,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  // 停止中提示
-                  if (_isStopping)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(
-                            Icons.hourglass_empty,
-                            color: Colors.orange,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '正在保存数据...',
-                            style: TextStyle(
-                              color: Colors.orange,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        _isStarted ? '距离终点' : '距离起点',
-                        style: TextStyle(color: Colors.grey[400], fontSize: 14),
-                      ),
-                      Text(
-                        _isStarted
-                            ? (_distanceToEnd != null
-                                  ? '${_distanceToEnd!.toStringAsFixed(0)} 米'
-                                  : '计算中...')
-                            : (_distanceToStart != null
-                                  ? '${_distanceToStart!.toStringAsFixed(0)} 米'
-                                  : '计算中...'),
-                        style: TextStyle(
-                          color: _isStarted
-                              ? (_distanceToEnd != null &&
-                                        _distanceToEnd! <= 100
-                                    ? Colors.green
-                                    : Colors.orange)
-                              : (_distanceToStart != null &&
-                                        _distanceToStart! <= 500
-                                    ? Colors.green
-                                    : Colors.orange),
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (_currentSpeed != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            '当前速度',
-                            style: TextStyle(
-                              color: Colors.grey[400],
-                              fontSize: 14,
-                            ),
-                          ),
-                          Text(
-                            '${_currentSpeed!.toStringAsFixed(1)} km/h',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  if (_isInStartArea)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.check_circle, color: Colors.green),
-                          const SizedBox(width: 8),
-                          const Text(
-                            '已进入起点区域',
-                            style: TextStyle(
-                              color: Colors.green,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  if (_isTiming)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 12),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.timer, color: Colors.green),
-                          SizedBox(width: 8),
-                          Text(
-                            '计时中...',
-                            style: TextStyle(
-                              color: Colors.green,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 32),
-
-            // 开始/停止按钮
-            if (!_isStarted)
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton.icon(
-                  onPressed: canStart ? _startRunning : null,
-                  icon: const Icon(Icons.play_arrow, size: 28),
-                  label: Text(
-                    canStart ? '开始跟跑' : '请前往起点',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: canStart
-                        ? const Color(0xFFFF3D00)
-                        : Colors.grey[700],
-                    foregroundColor: Colors.white,
-                    elevation: canStart ? 8 : 0,
-                    shadowColor: canStart
-                        ? const Color(0xFFFF3D00).withOpacity(0.4)
-                        : null,
-                  ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('取消', style: TextStyle(color: Colors.grey)),
                 ),
-              )
-            else
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton.icon(
-                  onPressed: _isStopping
-                      ? null
-                      : () => _stopRunning(
-                          saveRecord: true,
-                          manuallyStopped: true,
-                        ),
-                  icon: const Icon(Icons.stop, size: 28),
-                  label: Text(
-                    _isStopping ? '保存中...' : '结束并保存',
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context, true),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _isStopping
-                        ? Colors.grey[700]
-                        : Colors.red,
+                    backgroundColor: Colors.red,
                     foregroundColor: Colors.white,
-                    elevation: _isStopping ? 0 : 8,
-                    shadowColor: _isStopping
-                        ? null
-                        : Colors.red.withOpacity(0.4),
                   ),
+                  child: const Text('确认退出'),
+                ),
+              ],
+            ),
+          );
+
+          if (shouldPop == true) {
+            // 用户确认退出，执行停止并保存
+            await _stopRunning(saveRecord: true, manuallyStopped: true);
+          }
+        } else {
+          // 未开始时直接返回
+          Navigator.pop(context);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFF1A1A1A),
+        appBar: AppBar(
+          backgroundColor: const Color(0xFF1A1A1A),
+          elevation: 0,
+          title: Text(
+            widget.track.name,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 20,
+            ),
+          ),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.pop(context),
+          ),
+          actions: [
+            if (_isStarted)
+              IconButton(
+                icon: const Icon(Icons.stop, color: Colors.red),
+                onPressed: _isStopping
+                    ? null
+                    : () =>
+                          _stopRunning(saveRecord: true, manuallyStopped: true),
+                tooltip: '手动停止',
+              ),
+          ],
+        ),
+        body: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // 用时显示
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(32),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Colors.grey[900]!, Colors.grey[850]!],
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: const Color(0xFFFF3D00).withOpacity(0.3),
+                    width: 2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFFF3D00).withOpacity(0.2),
+                      blurRadius: 20,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    const Text(
+                      '用时',
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.grey,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      LocationUtils.formatDuration(_elapsedTime),
+                      style: const TextStyle(
+                        fontSize: 56,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'monospace',
+                        color: Color(0xFFFF3D00),
+                      ),
+                    ),
+                  ],
                 ),
               ),
+              const SizedBox(height: 24),
 
-            const SizedBox(height: 16),
-
-            // 提示信息
-            if (!_isStarted)
-              Text(
-                _distanceToStart != null && _distanceToStart! > 500
-                    ? '您距离起点${_distanceToStart!.toStringAsFixed(0)}米，请前往起点附近（500米内）'
-                    : '准备就绪，点击开始按钮开始跟跑',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey[500], fontSize: 14),
-              )
-            else
-              Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFF3D00).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: const Color(0xFFFF3D00).withOpacity(0.3),
-                      ),
-                    ),
-                    child: Row(
+              // 状态信息
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.grey[900],
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(color: Colors.grey[800]!, width: 1),
+                ),
+                child: Column(
+                  children: [
+                    // 定位灯指示器
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Icon(
-                          Icons.info_outline,
-                          color: Color(0xFFFF3D00),
-                          size: 20,
+                        Text(
+                          '定位状态',
+                          style: TextStyle(
+                            color: Colors.grey[400],
+                            fontSize: 14,
+                          ),
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                '🔔 锁屏通知已启用',
-                                style: TextStyle(
-                                  color: Color(0xFFFF3D00),
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
+                        Row(
+                          children: [
+                            if (!_isLocationReady && !_isStarted)
+                              Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: Text(
+                                  'GPS预热中...',
+                                  style: TextStyle(
+                                    color: Colors.orange,
+                                    fontSize: 12,
+                                  ),
                                 ),
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '锁屏后仍可查看计时器，下拉通知栏可控制',
-                                style: TextStyle(
-                                  color: Colors.grey[400],
-                                  fontSize: 11,
+                            AnimatedOpacity(
+                              opacity: _showLocationIndicator ? 1.0 : 0.3,
+                              duration: const Duration(milliseconds: 150),
+                              child: Container(
+                                width: 12,
+                                height: 12,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: _showLocationIndicator
+                                      ? (_isLocationReady
+                                            ? Colors.green
+                                            : Colors.orange)
+                                      : Colors.grey[600],
+                                  boxShadow: _showLocationIndicator
+                                      ? [
+                                          BoxShadow(
+                                            color:
+                                                (_isLocationReady
+                                                        ? Colors.green
+                                                        : Colors.orange)
+                                                    .withOpacity(0.6),
+                                            blurRadius: 8,
+                                            spreadRadius: 2,
+                                          ),
+                                        ]
+                                      : null,
                                 ),
                               ),
-                            ],
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    // 停止中提示
+                    if (_isStopping)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.hourglass_empty,
+                              color: Colors.orange,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '正在保存数据...',
+                              style: TextStyle(
+                                color: Colors.orange,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          _isStarted ? '距离终点' : '距离起点',
+                          style: TextStyle(
+                            color: Colors.grey[400],
+                            fontSize: 14,
+                          ),
+                        ),
+                        Text(
+                          _isStarted
+                              ? (_distanceToEnd != null
+                                    ? '${_distanceToEnd!.toStringAsFixed(0)} 米'
+                                    : '计算中...')
+                              : (_distanceToStart != null
+                                    ? '${_distanceToStart!.toStringAsFixed(0)} 米'
+                                    : '计算中...'),
+                          style: TextStyle(
+                            color: _isStarted
+                                ? (_distanceToEnd != null &&
+                                          _distanceToEnd! <= 100
+                                      ? Colors.green
+                                      : Colors.orange)
+                                : (_distanceToStart != null &&
+                                          _distanceToStart! <= 500
+                                      ? Colors.green
+                                      : Colors.orange),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
                           ),
                         ),
                       ],
                     ),
+                    if (_currentSpeed != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              '当前速度',
+                              style: TextStyle(
+                                color: Colors.grey[400],
+                                fontSize: 14,
+                              ),
+                            ),
+                            Text(
+                              '${_currentSpeed!.toStringAsFixed(1)} km/h',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    if (_isInStartArea)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.check_circle, color: Colors.green),
+                            const SizedBox(width: 8),
+                            const Text(
+                              '已进入起点区域',
+                              style: TextStyle(
+                                color: Colors.green,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    if (_isTiming)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 12),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.timer, color: Colors.green),
+                            SizedBox(width: 8),
+                            Text(
+                              '计时中...',
+                              style: TextStyle(
+                                color: Colors.green,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 32),
+
+              // 开始/停止按钮
+              if (!_isStarted)
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton.icon(
+                    onPressed: canStart ? _startRunning : null,
+                    icon: const Icon(Icons.play_arrow, size: 28),
+                    label: Text(
+                      canStart ? '开始跟跑' : '请前往起点',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: canStart
+                          ? const Color(0xFFFF3D00)
+                          : Colors.grey[700],
+                      foregroundColor: Colors.white,
+                      elevation: canStart ? 8 : 0,
+                      shadowColor: canStart
+                          ? const Color(0xFFFF3D00).withOpacity(0.4)
+                          : null,
+                    ),
                   ),
-                  const SizedBox(height: 8),
-                  if (_isTiming)
+                )
+              else
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton.icon(
+                    onPressed: _isStopping
+                        ? null
+                        : () => _stopRunning(
+                            saveRecord: true,
+                            manuallyStopped: true,
+                          ),
+                    icon: const Icon(Icons.stop, size: 28),
+                    label: Text(
+                      _isStopping ? '保存中...' : '结束并保存',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _isStopping
+                          ? Colors.grey[700]
+                          : Colors.red,
+                      foregroundColor: Colors.white,
+                      elevation: _isStopping ? 0 : 8,
+                      shadowColor: _isStopping
+                          ? null
+                          : Colors.red.withOpacity(0.4),
+                    ),
+                  ),
+                ),
+
+              const SizedBox(height: 16),
+
+              // 提示信息
+              if (!_isStarted)
+                Text(
+                  _distanceToStart != null && _distanceToStart! > 500
+                      ? '您距离起点${_distanceToStart!.toStringAsFixed(0)}米，请前往起点附近（500米内）'
+                      : '准备就绪，点击开始按钮开始跟跑',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey[500], fontSize: 14),
+                )
+              else
+                Column(
+                  children: [
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.1),
+                        color: const Color(0xFFFF3D00).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: Colors.green.withOpacity(0.3),
+                          color: const Color(0xFFFF3D00).withOpacity(0.3),
                         ),
                       ),
                       child: Row(
                         children: [
                           const Icon(
-                            Icons.timer,
-                            color: Colors.green,
+                            Icons.info_outline,
+                            color: Color(0xFFFF3D00),
                             size: 20,
                           ),
                           const SizedBox(width: 8),
                           Expanded(
-                            child: Text(
-                              '计时中...进入终点区域将自动停止',
-                              style: TextStyle(
-                                color: Colors.green[300],
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  '🔔 锁屏通知已启用',
+                                  style: TextStyle(
+                                    color: Color(0xFFFF3D00),
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '锁屏后仍可查看计时器，下拉通知栏可控制',
+                                  style: TextStyle(
+                                    color: Colors.grey[400],
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
                       ),
                     ),
-                ],
-              ),
-          ],
+                    const SizedBox(height: 8),
+                    if (_isTiming)
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.green.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: Colors.green.withOpacity(0.3),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.timer,
+                              color: Colors.green,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                '计时中...进入终点区域将自动停止',
+                                style: TextStyle(
+                                  color: Colors.green[300],
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+            ],
+          ),
         ),
       ),
     );
