@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
-/// 跑步状态通知服务 - 实现类似 QQ 音乐的锁屏控制界面
+/// 行驶状态通知服务 - 实现类似 QQ 音乐的锁屏控制界面
 class RunningNotificationService {
   static final RunningNotificationService _instance =
       RunningNotificationService._internal();
@@ -44,7 +44,7 @@ class RunningNotificationService {
     _isInitialized = true;
   }
 
-  /// 显示跑步中的通知（带计时器和控制按钮）
+  /// 显示行驶中的通知（带计时器和控制按钮）
   Future<void> showRunningNotification({
     required String elapsedTime,
     required double distance,
@@ -55,8 +55,8 @@ class RunningNotificationService {
     // Android 通知配置
     const androidChannel = AndroidNotificationChannel(
       'running_channel',
-      '跑步状态',
-      description: '显示跑步过程中的实时状态',
+      '行驶状态',
+      description: '显示行驶过程中的实时状态',
       importance: Importance.high,
     );
 
@@ -68,8 +68,8 @@ class RunningNotificationService {
 
     final androidDetails = AndroidNotificationDetails(
       'running_channel',
-      '跑步状态',
-      channelDescription: '显示跑步过程中的实时状态',
+      '行驶状态',
+      channelDescription: '显示行驶过程中的实时状态',
       importance: Importance.max,
       priority: Priority.max,
       ongoing: true, // 持续通知，不能被滑动清除
