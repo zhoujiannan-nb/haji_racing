@@ -312,7 +312,6 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
       }
 
       // 检查是否满足计时触发条件（在起点围栏内且速度>15km/h）
-      // 只有同时满足这两个条件才开始计时和记录轨迹点
       if (isInStartArea && (location.speed ?? 0) > 15) {
         if (mounted) {
           setState(() {
