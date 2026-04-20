@@ -317,7 +317,6 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
           setState(() {
             _isTiming = true;
           });
-          // 真正开始计时
           _startTimer();
           debugPrint(
             '✅ 开始计时！位置: 起点区域内, 速度: ${location.speed?.toStringAsFixed(1)} km/h',
@@ -326,7 +325,6 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
       }
     } else {
       // 已经在计时中，检查是否到达终点
-      // 使用射线法判断点是否在终点多边形内
       final isInEndArea = LocationUtils.isPointInPolygon(
         pointLat: location.latitude,
         pointLon: location.longitude,
@@ -341,8 +339,7 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
       }
     }
 
-    // ⚠️ 关键逻辑：只有在计时中才保存轨迹点到JSON文件
-    // 这样确保只记录有效比赛过程中的轨迹点
+    // 只有在计时中才保存轨迹点到JSON文件这样确保只记录有效比赛过程中的轨迹点
     if (_isTiming && _recordId != null) {
       final pointData = {
         'latitude': location.latitude,
