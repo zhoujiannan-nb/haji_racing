@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../models/track.dart';
 import '../models/track_record.dart';
+import '../models/track_point.dart';
 import '../database/database_helper.dart';
 import '../services/location_service.dart';
 import '../utils/location_utils.dart';
@@ -333,7 +334,7 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
         polygon: widget.track.endPolygon,
       );
 
-      if (isInEndArea) {
+      if (isInEndArea && _isStopping) {
         if (mounted) {
           debugPrint('🏁 到达终点区域，自动停止！');
           _stopRunning(saveRecord: true);
@@ -433,6 +434,27 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
         final record = await _db.getTrackRecord(_recordId!);
         if (record != null) {
           await _db.updateTrackRecord(record.copyWith(trajectoryJson: content));
+        }
+
+        // 解析JSON并插入轨迹点到track_points表（混合存储）
+        Map<String, dynamic> jsonData = jsonDecode(content);
+        List<dynamic> points = jsonData['points'] ?? [];
+
+        List<TrackPoint> trackPoints = points.map((pointData) {
+          return TrackPoint(
+            recordId: _recordId!,
+            latitude: pointData['latitude'],
+            longitude: pointData['longitude'],
+            speed: pointData['speed'],
+            timestamp: pointData['timestamp'],
+            sequence: pointData['sequence'],
+          );
+        }).toList();
+
+        // 批量插入轨迹点到数据库
+        if (trackPoints.isNotEmpty) {
+          await _db.insertTrackPoints(trackPoints);
+          debugPrint('✅ 已保存 ${trackPoints.length} 个轨迹点到数据库（包含速度等结构化数据）');
         }
       }
 
