@@ -31,6 +31,9 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
   bool _isStopping = false; // 是否正在停止过程中（用于UI提示）
   bool _showLocationIndicator = false; // 是否显示定位灯
   bool _isLocationReady = false; // GPS是否已就绪（预热完成）
+
+  // Debug日志开关 - 设置为true可开启定位信息调试日志
+  static const bool _debugLogEnabled = false;
   double _elapsedTime = 0;
   Timer? _timer;
   StreamSubscription<LocationData>? _locationSubscription;
@@ -81,6 +84,17 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
       _locationSubscription = _locationService.startContinuousLocation().listen(
         (location) {
           if (!mounted) return;
+
+          // Debug日志：打印每次获取到的定位信息
+          if (_debugLogEnabled) {
+            debugPrint(
+              '📍 [DEBUG] 定位更新 - '
+              '纬度: ${location.latitude.toStringAsFixed(6)}, '
+              '经度: ${location.longitude.toStringAsFixed(6)}, '
+              '速度: ${(location.speed ?? 0).toStringAsFixed(2)} km/h, '
+              '时间戳: ${location.timestamp.toIso8601String()}',
+            );
+          }
 
           // 更新当前位置信息（用于显示和距离计算）
           setState(() {
@@ -242,6 +256,18 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
   /// 3. 到达终点区域时自动停止并保存数据
   Future<void> _handleLocationUpdate(LocationData location) async {
     if (!mounted || _isStopping) return; // 如果组件已销毁或正在停止则直接返回
+
+    // Debug日志：打印每次获取到的定位信息
+    if (_debugLogEnabled) {
+      debugPrint(
+        '📍 [DEBUG] 跟跑中定位更新 - '
+        '纬度: ${location.latitude.toStringAsFixed(6)}, '
+        '经度: ${location.longitude.toStringAsFixed(6)}, '
+        '速度: ${(location.speed ?? 0).toStringAsFixed(2)} km/h, '
+        '计时状态: $_isTiming, '
+        '时间戳: ${location.timestamp.toIso8601String()}',
+      );
+    }
 
     setState(() {
       _currentLatitude = location.latitude;
