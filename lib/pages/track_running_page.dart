@@ -629,96 +629,25 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
       await _disableWakeLock();
 
       if (saveRecord && _recordId != null) {
-        // 检查是否有实际的轨迹点数据
-        final hasTrajectoryData =
-            _trajectoryPoints.isNotEmpty ||
-            (_trajectoryFilePath != null &&
-                File(_trajectoryFilePath!).existsSync());
-
-        // 只有当有实际轨迹数据时才保存记录
-        if (hasTrajectoryData) {
-          // 更新轨迹记录的状态和结束时间
-          final record = await _db.getTrackRecord(_recordId!);
-          if (record != null) {
-            await _db.updateTrackRecord(
-              record.copyWith(
-                endTime: DateTime.now().toIso8601String(),
-                duration: _elapsedTime,
-                // 手动停止标记为incomplete，自动到达终点标记为completed
-                status: manuallyStopped ? 'incomplete' : 'completed',
-                manuallyStopped: manuallyStopped,
-              ),
-            );
-          }
-
-          debugPrint(
-            manuallyStopped
-                ? '⚠️ 已手动停止！用时: ${LocationUtils.formatDuration(_elapsedTime)}（未完成）'
-                : '✅ 完成！用时: ${LocationUtils.formatDuration(_elapsedTime)}',
+        // 更新轨迹记录的状态和结束时间
+        final record = await _db.getTrackRecord(_recordId!);
+        if (record != null) {
+          await _db.updateTrackRecord(
+            record.copyWith(
+              endTime: DateTime.now().toIso8601String(),
+              duration: _elapsedTime,
+              // 手动停止标记为incomplete，自动到达终点标记为completed
+              status: manuallyStopped ? 'incomplete' : 'completed',
+              manuallyStopped: manuallyStopped,
+            ),
           );
-        } else {
-          // 如果没有轨迹数据，删除这条记录并提示用户
-          await _db.deleteTrackRecord(_recordId!);
-          debugPrint('❌ 无有效轨迹数据，已删除空记录');
-
-          // 显示UI提示
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Row(
-                  children: [
-                    const Icon(
-                      Icons.warning_amber_rounded,
-                      color: Colors.orange,
-                      size: 24,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            '记录未保存',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '检测到你没有移动，无轨迹点，不保存',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey[300],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                backgroundColor: const Color(0xFF2C2C2C),
-                duration: const Duration(seconds: 5),
-                behavior: SnackBarBehavior.floating,
-                margin: const EdgeInsets.only(top: 80, left: 16, right: 16),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 16,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(
-                    color: Colors.orange.withOpacity(0.5),
-                    width: 2,
-                  ),
-                ),
-                elevation: 10,
-              ),
-            );
-          }
         }
+
+        debugPrint(
+          manuallyStopped
+              ? '⚠️ 已手动停止！用时: ${LocationUtils.formatDuration(_elapsedTime)}（未完成）'
+              : '✅ 完成！用时: ${LocationUtils.formatDuration(_elapsedTime)}',
+        );
       } else {
         // 删除不完整的记录（例如用户未开始就退出）
         if (_recordId != null) {
