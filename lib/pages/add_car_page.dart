@@ -308,9 +308,9 @@ class _AddCarPageState extends State<AddCarPage> {
         const SizedBox(height: 8),
         Row(
           children: [
-            Expanded(child: _buildTireTypeOption('SH', '硬胎', '+80~120')),
+            Expanded(child: _buildTireTypeOption('SH', '街道胎', '+80~120')),
             const SizedBox(width: 12),
-            Expanded(child: _buildTireTypeOption('SS', '软胎', '+160~220')),
+            Expanded(child: _buildTireTypeOption('SS', '半热熔', '+160~220')),
           ],
         ),
       ],
