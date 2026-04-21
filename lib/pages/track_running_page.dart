@@ -350,7 +350,7 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
         }
       }
 
-      if (isInEndArea && _isStopping) {
+      if (isInEndArea && !_isStopping) {
         if (mounted) {
           debugPrint('🏁 到达终点区域，自动停止！');
           _stopRunning(saveRecord: true);
