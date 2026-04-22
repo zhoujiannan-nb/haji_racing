@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
 import 'pages/home_page.dart';
+import 'pages/login_page.dart';
+import 'pages/register_page.dart';
 import 'services/track_import_service.dart';
+import 'services/auth_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 初始化认证服务
+  final authService = AuthService();
+  await authService.init();
 
   // 从JSON文件导入赛道数据
   final importService = TrackImportService();
@@ -28,6 +35,10 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       home: const HomePage(),
+      routes: {
+        '/login': (context) => const LoginPage(),
+        '/register': (context) => const RegisterPage(),
+      },
     );
   }
 }

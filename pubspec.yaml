@@ -45,6 +45,12 @@ dependencies:
   
   # 通知相关（用于锁屏控制）
   flutter_local_notifications: ^17.0.0
+  
+  # 网络请求
+  http: ^1.1.0
+  
+  # 本地存储
+  shared_preferences: ^2.2.0
 
 dev_dependencies:
   flutter_test:

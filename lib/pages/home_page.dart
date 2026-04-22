@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/car.dart';
 import '../database/database_helper.dart';
+import '../services/auth_service.dart';
 import 'car_list_page.dart';
 import 'track_list_page.dart';
 import 'my_track_records_page.dart';
@@ -15,6 +16,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   Car? _mainCar;
   final DatabaseHelper _dbHelper = DatabaseHelper.instance;
+  final AuthService _authService = AuthService();
 
   @override
   void initState() {
@@ -27,6 +29,89 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       _mainCar = car;
     });
+  }
+
+  /// 显示用户菜单
+  void _showUserMenu(BuildContext context) {
+    final user = _authService.currentUser;
+    if (user == null) return;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.grey[900],
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 用户信息
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 30,
+                  backgroundColor: const Color(0xFFFF3D00),
+                  child: Text(
+                    user.username.isNotEmpty
+                        ? user.username[0].toUpperCase()
+                        : 'U',
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 15),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        user.username,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        user.isLoggedIn ? '已登录' : '游客模式',
+                        style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 30, color: Colors.grey),
+
+            // 退出登录按钮（仅对已登录用户显示）
+            if (user.isLoggedIn)
+              ListTile(
+                leading: const Icon(Icons.logout, color: Colors.red),
+                title: const Text('退出登录', style: TextStyle(color: Colors.red)),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await _authService.logout();
+                  if (mounted) {
+                    setState(() {});
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('已退出登录'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
+                },
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -87,57 +172,93 @@ class _HomePageState extends State<HomePage> {
         children: [
           // 顶部导航栏
           Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
                   'Haji Racing',
                   style: TextStyle(
-                    fontSize: 28,
+                    fontSize: 24,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                     letterSpacing: 2,
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.directions_car, color: Colors.white),
-                  onPressed: () async {
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const CarListPage(),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // 车辆列表
+                    IconButton(
+                      icon: const Icon(
+                        Icons.directions_car,
+                        color: Colors.white,
                       ),
-                    );
-                    _loadMainCar();
-                  },
-                  tooltip: '车辆列表',
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: const Icon(Icons.flag, color: Colors.white),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const TrackListPage(),
+                      onPressed: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const CarListPage(),
+                          ),
+                        );
+                        _loadMainCar();
+                      },
+                      tooltip: '车辆列表',
+                    ),
+                    // 赛道列表
+                    IconButton(
+                      icon: const Icon(Icons.flag, color: Colors.white),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const TrackListPage(),
+                          ),
+                        );
+                      },
+                      tooltip: '赛道列表',
+                    ),
+                    // 我的轨迹
+                    IconButton(
+                      icon: const Icon(Icons.route, color: Colors.white),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const MyTrackRecordsPage(),
+                          ),
+                        );
+                      },
+                      tooltip: '我的轨迹',
+                    ),
+                    // 用户信息/登录按钮（放在最右边）
+                    IconButton(
+                      icon: Icon(
+                        _authService.currentUser?.isLoggedIn == true
+                            ? Icons.account_circle
+                            : Icons.person_outline,
+                        color: Colors.white,
                       ),
-                    );
-                  },
-                  tooltip: '赛道列表',
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  icon: const Icon(Icons.route, color: Colors.white),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const MyTrackRecordsPage(),
-                      ),
-                    );
-                  },
-                  tooltip: '我的轨迹',
+                      onPressed: () async {
+                        if (_authService.currentUser?.isLoggedIn == true) {
+                          // 已登录，显示用户信息和退出选项
+                          _showUserMenu(context);
+                        } else {
+                          // 未登录，跳转到登录页
+                          final result = await Navigator.pushNamed(
+                            context,
+                            '/login',
+                          );
+                          if (result == true && mounted) {
+                            setState(() {});
+                          }
+                        }
+                      },
+                      tooltip: _authService.currentUser?.isLoggedIn == true
+                          ? _authService.currentUser!.username
+                          : '登录',
+                    ),
+                  ],
                 ),
               ],
             ),
