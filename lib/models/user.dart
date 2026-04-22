@@ -47,7 +47,6 @@ class User {
   /// 从登录响应创建用户对象
   factory User.fromLoginResponse(Map<String, dynamic> json) {
     return User(
-      id: json['userId'],
       username: json['username'] ?? '',
       token: json['token'],
       role: json['role'],

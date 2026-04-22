@@ -18,6 +18,7 @@ class _MyTrackRecordsPageState extends State<MyTrackRecordsPage> {
   final Map<int, Track?> _trackCache = {};
   final Map<int, Car?> _carCache = {};
   bool _isLoading = true;
+  String? _currentUsername;
 
   @override
   void initState() {
@@ -39,6 +40,9 @@ class _MyTrackRecordsPageState extends State<MyTrackRecordsPage> {
         });
         return;
       }
+
+      // 保存用户名
+      _currentUsername = user.username;
 
       final records = await _db.getUserTrackRecords(user.id!);
 
@@ -294,7 +298,7 @@ class _MyTrackRecordsPageState extends State<MyTrackRecordsPage> {
                     Icon(Icons.person, size: 16, color: Colors.grey[500]),
                     const SizedBox(width: 4),
                     Text(
-                      'race',
+                      _currentUsername ?? '游客',
                       style: TextStyle(fontSize: 13, color: Colors.grey[400]),
                     ),
                   ],

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/car.dart';
@@ -394,20 +395,162 @@ class DatabaseHelper {
   }
 
   // 保存或更新用户信息
-  Future<int> saveUser(User user) async {
+  Future<User> saveUser(User user) async {
     final db = await database;
-    if (user.id != null) {
-      // 更新现有用户
-      return await db.update(
+
+    // 如果有 account，先检查是否已存在该账户的用户
+    if (user.account != null && user.account!.isNotEmpty) {
+      final existingUsers = await db.query(
         'users',
-        user.toMap(),
-        where: 'id = ?',
-        whereArgs: [user.id],
+        where: 'account = ?',
+        whereArgs: [user.account],
       );
-    } else {
-      // 插入新用户
-      return await db.insert('users', user.toMap());
+
+      if (existingUsers.isNotEmpty) {
+        // 更新现有用户
+        await db.update(
+          'users',
+          user.toMap(),
+          where: 'account = ?',
+          whereArgs: [user.account],
+        );
+        // 返回带有原ID的用户对象
+        return user.copyWith(id: existingUsers.first['id'] as int?);
+      }
     }
+
+    // 如果没有account或不存在该账户的用户，则插入新用户
+    final id = await db.insert('users', user.toMap());
+    return user.copyWith(id: id);
+  }
+
+  // 转移所有轨迹记录给指定用户（霸道模式）
+  Future<void> transferAllRecordsToUser(int targetUserId) async {
+    final db = await database;
+
+    try {
+      // 开始事务
+      await db.transaction((txn) async {
+        // 获取所有不同的userId（排除目标用户）
+        final userIds = await txn.rawQuery(
+          'SELECT DISTINCT userId FROM track_records WHERE userId != ?',
+          [targetUserId],
+        );
+
+        if (userIds.isEmpty) {
+          debugPrint('没有其他用户的轨迹记录需要转移');
+          return;
+        }
+
+        final otherUserIds = userIds.map((u) => u['userId'] as int).toList();
+        debugPrint('发现 ${otherUserIds.length} 个其他用户的轨迹记录: $otherUserIds');
+
+        // 统计每个用户的记录数
+        for (var uid in otherUserIds) {
+          final countResult = await txn.rawQuery(
+            'SELECT COUNT(*) as count FROM track_records WHERE userId = ?',
+            [uid],
+          );
+          final count = countResult.first['count'] as int? ?? 0;
+          debugPrint('  - 用户 $uid 有 $count 条记录');
+        }
+
+        // 强制将所有轨迹记录的userId改为目标用户
+        final totalCount = await txn.update(
+          'track_records',
+          {'userId': targetUserId},
+          where: 'userId != ?',
+          whereArgs: [targetUserId],
+        );
+
+        debugPrint('✅ 已强制转移 $totalCount 条轨迹记录给用户 $targetUserId');
+
+        // 统计轨迹点数量
+        final pointCountResult = await txn.rawQuery(
+          'SELECT COUNT(*) as count FROM track_points',
+        );
+        final pointCount = pointCountResult.first['count'] as int? ?? 0;
+        debugPrint('   这些记录关联了 $pointCount 个轨迹点（自动跟随）');
+
+        // 统计包含trajectoryJson的记录数
+        final jsonCountResult = await txn.rawQuery(
+          'SELECT COUNT(*) as count FROM track_records WHERE userId = ? AND trajectoryJson IS NOT NULL',
+          [targetUserId],
+        );
+        final jsonCount = jsonCountResult.first['count'] as int? ?? 0;
+        debugPrint('   其中 $jsonCount 条记录包含trajectoryJson数据');
+      });
+
+      debugPrint('🎉 数据转移完成！所有轨迹记录现在都属于用户 $targetUserId');
+    } catch (e) {
+      debugPrint('❌ 数据转移失败: $e');
+      rethrow;
+    }
+  }
+
+  // 获取或创建用户（如果不存在则创建）
+  Future<User> getOrCreateUser({
+    required String username,
+    String? account,
+    String? email,
+    String? token,
+    String? role,
+  }) async {
+    final db = await database;
+
+    // 先尝试根据account查找
+    User? existingUser;
+    if (account != null && account.isNotEmpty) {
+      existingUser = await getUserByAccount(account);
+    }
+
+    // 如果没找到，尝试根据username查找
+    if (existingUser == null) {
+      final result = await db.query(
+        'users',
+        where: 'username = ?',
+        whereArgs: [username],
+        limit: 1,
+      );
+      if (result.isNotEmpty) {
+        existingUser = User.fromMap(result.first);
+      }
+    }
+
+    // 如果找到了，更新信息
+    if (existingUser != null) {
+      final updatedUser = existingUser.copyWith(
+        email: email ?? existingUser.email,
+        token: token ?? existingUser.token,
+        role: role ?? existingUser.role,
+        account: account ?? existingUser.account,
+      );
+      await updateUser(existingUser.id!, updatedUser);
+      return updatedUser;
+    }
+
+    // 如果没找到，创建新用户
+    final newUser = User(
+      username: username,
+      account: account,
+      email: email,
+      token: token,
+      role: role,
+      createdAt: DateTime.now().toIso8601String(),
+    );
+    final id = await db.insert('users', newUser.toMap());
+    return newUser.copyWith(id: id);
+  }
+
+  // 更新用户信息
+  Future<int> updateUser(int userId, User user) async {
+    final db = await database;
+    return await db.update(
+      'users',
+      user.toMap(),
+      where: 'id = ?',
+      whereArgs: [userId],
+    );
   }
 
   // ==================== 赛道相关操作 ====================

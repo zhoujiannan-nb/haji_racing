@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user.dart';
@@ -74,7 +75,15 @@ class AuthService {
         await _saveUserToStorage(_currentUser!);
 
         // 保存用户信息到数据库
-        await DatabaseHelper.instance.saveUser(_currentUser!);
+        _currentUser = await DatabaseHelper.instance.saveUser(_currentUser!);
+
+        // 强制将所有轨迹记录转移给当前登录用户
+        debugPrint('正在转移所有轨迹记录给用户 ${_currentUser!.id}');
+        if (_currentUser!.id != null) {
+          await DatabaseHelper.instance.transferAllRecordsToUser(
+            _currentUser!.id!,
+          );
+        }
 
         return {'success': true, 'message': '登录成功'};
       } else {
