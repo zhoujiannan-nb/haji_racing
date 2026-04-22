@@ -26,7 +26,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 9,
+      version: 10,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -58,6 +58,10 @@ class DatabaseHelper {
       CREATE TABLE users (
         id $idType,
         username $textType,
+        account TEXT,
+        email TEXT,
+        token TEXT,
+        role TEXT,
         createdAt TEXT NOT NULL DEFAULT (datetime('now'))
       )
     ''');
@@ -249,6 +253,18 @@ class DatabaseHelper {
         print('trajectoryJson字段可能已存在: $e');
       }
     }
+
+    if (oldVersion < 10) {
+      // 版本9升级到版本10：为users表添加token等字段
+      try {
+        await db.execute('ALTER TABLE users ADD COLUMN account TEXT');
+        await db.execute('ALTER TABLE users ADD COLUMN email TEXT');
+        await db.execute('ALTER TABLE users ADD COLUMN token TEXT');
+        await db.execute('ALTER TABLE users ADD COLUMN role TEXT');
+      } catch (e) {
+        print('users表字段可能已存在: $e');
+      }
+    }
   }
 
   // 插入车辆
@@ -328,14 +344,70 @@ class DatabaseHelper {
 
   // ==================== 用户相关操作 ====================
 
-  // 获取当前用户（默认返回第一个用户）
+  // 获取当前用户,如果已登录返回登录的用户
   Future<User?> getCurrentUser() async {
     final db = await database;
-    final result = await db.query('users', limit: 1);
+    // 优先获取已登录的用户（token不为空）
+    var result = await db.query(
+      'users',
+      where: 'token IS NOT NULL AND token != ?',
+      whereArgs: [''],
+      orderBy: 'id DESC',
+      limit: 1,
+    );
+
+    // 如果没有已登录的用户，则返回任意一个用户
+    if (result.isEmpty) {
+      result = await db.query('users', limit: 1);
+    }
+
     if (result.isNotEmpty) {
       return User.fromMap(result.first);
     }
     return null;
+  }
+
+  // 更新用户token
+  Future<int> updateUserToken(int userId, String? token) async {
+    final db = await database;
+    return await db.update(
+      'users',
+      {'token': token},
+      where: 'id = ?',
+      whereArgs: [userId],
+    );
+  }
+
+  // 根据account查找用户
+  Future<User?> getUserByAccount(String account) async {
+    final db = await database;
+    final result = await db.query(
+      'users',
+      where: 'account = ?',
+      whereArgs: [account],
+      limit: 1,
+    );
+    if (result.isNotEmpty) {
+      return User.fromMap(result.first);
+    }
+    return null;
+  }
+
+  // 保存或更新用户信息
+  Future<int> saveUser(User user) async {
+    final db = await database;
+    if (user.id != null) {
+      // 更新现有用户
+      return await db.update(
+        'users',
+        user.toMap(),
+        where: 'id = ?',
+        whereArgs: [user.id],
+      );
+    } else {
+      // 插入新用户
+      return await db.insert('users', user.toMap());
+    }
   }
 
   // ==================== 赛道相关操作 ====================

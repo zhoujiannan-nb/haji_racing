@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user.dart';
+import '../database/database_helper.dart';
 
 class AuthService {
   static final AuthService _instance = AuthService._internal();
@@ -48,6 +49,11 @@ class AuthService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('current_user');
+
+      // 清除数据库中的token
+      if (_currentUser?.id != null) {
+        await DatabaseHelper.instance.updateUserToken(_currentUser!.id!, null);
+      }
     } catch (e) {
       print('清除用户信息失败: $e');
     }
@@ -66,6 +72,10 @@ class AuthService {
         final data = jsonDecode(response.body);
         _currentUser = User.fromLoginResponse(data);
         await _saveUserToStorage(_currentUser!);
+
+        // 保存用户信息到数据库
+        await DatabaseHelper.instance.saveUser(_currentUser!);
+
         return {'success': true, 'message': '登录成功'};
       } else {
         final error = jsonDecode(response.body);
