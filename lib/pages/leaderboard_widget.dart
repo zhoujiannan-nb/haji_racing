@@ -25,7 +25,7 @@ class _LeaderboardWidgetState extends State<LeaderboardWidget> {
   List<int> _ppGroups = []; // PP值分组列表
   Map<int, List<TrackRecord>> _groupedRecords = {}; // 按PP分组的记录
   int _currentPage = 0; // 当前页码
-  static const int _pageSize = 20; // 每页显示20条记录
+  static const int _pageSize = 5; // 每页显示5条记录
 
   @override
   void initState() {
