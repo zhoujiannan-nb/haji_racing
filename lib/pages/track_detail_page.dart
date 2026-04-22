@@ -165,7 +165,7 @@ class _TrackDetailPageState extends State<TrackDetailPage> {
                 const Icon(Icons.emoji_events, color: Color(0xFFFFD700)),
                 const SizedBox(width: 8),
                 const Text(
-                  '赛道圈速榜',
+                  '我的圈速榜',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,

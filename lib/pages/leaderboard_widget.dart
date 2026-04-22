@@ -17,6 +17,7 @@ class _LeaderboardWidgetState extends State<LeaderboardWidget> {
   final DatabaseHelper _db = DatabaseHelper.instance;
   List<TrackRecord> _allRecords = [];
   Map<int, Car?> _carCache = {};
+  String _currentUsername = 'race';
   bool _isLoading = true;
 
   // PP值分组相关
@@ -38,6 +39,12 @@ class _LeaderboardWidgetState extends State<LeaderboardWidget> {
     });
 
     try {
+      // 获取当前用户
+      final currentUser = await _db.getCurrentUser();
+      if (currentUser != null) {
+        _currentUsername = currentUser.username;
+      }
+
       final records = await _db.getTrackLeaderboard(widget.trackId);
 
       // 缓存车辆信息并计算PP值
@@ -255,7 +262,7 @@ class _LeaderboardWidgetState extends State<LeaderboardWidget> {
 
         // 圈速记录列表 - 使用固定高度的Container
         Container(
-          height: MediaQuery.of(context).size.height * 0.5, // 占用屏幕高度的50%
+          height: MediaQuery.of(context).size.height * 0.25, // 占用屏幕高度的25%
           child: _getCurrentPageRecords().isEmpty
               ? Center(
                   child: Text(
@@ -380,7 +387,7 @@ class _LeaderboardWidgetState extends State<LeaderboardWidget> {
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  'race',
+                                  _currentUsername,
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: Colors.grey[600],
