@@ -224,6 +224,10 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
       _recordId = await _db.createTrackRecord(record);
       _pointSequence = 0;
 
+      // 重置轨迹数据相关变量，确保每次运行都使用新的临时文件
+      _trajectoryPoints.clear();
+      _trajectoryFilePath = null;
+
       debugPrint('📝 创建轨迹记录，ID: $_recordId');
 
       // 请求通知权限并显示通知
@@ -401,11 +405,14 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
   /// 追加轨迹点到临时JSON文件
   Future<void> _appendPointToFile(Map<String, dynamic> pointData) async {
     try {
-      // 如果还没有创建临时文件，则创建
+      // 如果还没有创建临时文件，则创建（每次都生成新的唯一文件名）
       if (_trajectoryFilePath == null) {
         final tempDir = Directory.systemTemp;
+        // 使用时间戳+随机数确保文件名唯一，避免重复使用旧文件
+        final timestamp = DateTime.now().millisecondsSinceEpoch;
+        final randomSuffix = DateTime.now().microsecondsSinceEpoch % 10000;
         _trajectoryFilePath =
-            '${tempDir.path}/trajectory_${_recordId}_${DateTime.now().millisecondsSinceEpoch}.json';
+            '${tempDir.path}/trajectory_${_recordId}_${timestamp}_${randomSuffix}.json';
 
         // 创建初始JSON文件
         final initialData = {
@@ -413,6 +420,7 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
         };
         final file = File(_trajectoryFilePath!);
         await file.writeAsString(jsonEncode(initialData));
+        debugPrint('📁 创建临时轨迹文件: $_trajectoryFilePath');
       } else {
         // 读取现有JSON数据
         final file = File(_trajectoryFilePath!);
