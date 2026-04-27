@@ -1,7 +1,5 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../models/track.dart';
-import '../models/checkpoint.dart' as models;
 import '../models/car.dart';
 import '../database/database_helper.dart';
 import 'track_running_page.dart';
@@ -271,6 +269,7 @@ class _TrackDetailPageState extends State<TrackDetailPage> {
                 ),
               ),
             ),
+            const SizedBox(height: 16),
           ],
         ),
       ),

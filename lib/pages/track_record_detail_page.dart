@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../models/track_record.dart';
 import '../models/track_point.dart';
 import '../models/track.dart';
 import '../models/car.dart';
 import '../database/database_helper.dart';
+import '../services/auth_service.dart';
 
 class TrackRecordDetailPage extends StatefulWidget {
   final TrackRecord record;
@@ -20,6 +23,7 @@ class _TrackRecordDetailPageState extends State<TrackRecordDetailPage> {
   Car? _car;
   List<TrackPoint> _points = [];
   bool _isLoading = true;
+  bool _isUploading = false;
 
   @override
   void initState() {
@@ -104,6 +108,169 @@ class _TrackRecordDetailPageState extends State<TrackRecordDetailPage> {
       }
     }
     return maxSpeed > 0 ? maxSpeed : null;
+  }
+
+  /// 上传轨迹记录到云端
+  Future<void> _uploadToCloud() async {
+    // 检查用户是否登录
+    final authService = AuthService();
+    final user = authService.currentUser;
+
+    if (user == null || user.token == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('请先登录后再上传')));
+      }
+      return;
+    }
+
+    // 显示确认对话框
+    final shouldUpload = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        title: const Text('上传轨迹记录', style: TextStyle(color: Colors.white)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '赛道: ${_track?.name ?? "未知"}',
+              style: const TextStyle(color: Colors.white),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '车辆: ${_car?.name ?? "默认车辆"}',
+              style: const TextStyle(color: Colors.white),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '用时: ${_formatDuration(widget.record.duration)}',
+              style: const TextStyle(color: Colors.white),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '轨迹点: ${_points.length} 个',
+              style: const TextStyle(color: Colors.white),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2196F3),
+            ),
+            child: const Text('确定'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldUpload != true) return;
+
+    setState(() {
+      _isUploading = true;
+    });
+
+    try {
+      // 准备轨迹点数据
+      final trajectoryPoints = _points.map((point) {
+        return {
+          'latitude': point.latitude,
+          'longitude': point.longitude,
+          'speed': point.speed,
+          'timestamp': point.timestamp,
+          'sequence': point.sequence,
+        };
+      }).toList();
+
+      final trajectoryJson = jsonEncode({'points': trajectoryPoints});
+
+      // 准备车辆数据
+      final carJson = jsonEncode({
+        'name': _car?.name ?? '默认车辆',
+        'PP': _car?.calculatePP().toStringAsFixed(0) ?? '0',
+      });
+
+      // 准备赛道数据
+      final trackJson = jsonEncode({
+        'id': widget.record.trackId,
+        'name': _track?.name ?? '未知赛道',
+      });
+
+      // 构建请求体
+      final requestBody = {
+        'startTime': widget.record.startTime,
+        'endTime': widget.record.endTime,
+        'duration': widget.record.duration != null
+            ? (widget.record.duration! * 1000).toInt()
+            : 0,
+        'status': widget.record.status,
+        'manuallyStopped': widget.record.manuallyStopped,
+        'trackJson': trackJson,
+        'carJson': carJson,
+        'trajectoryJson': trajectoryJson,
+      };
+
+      // 发送HTTP请求
+      final url = Uri.parse('${AuthService.baseUrl}/api/records/upload');
+      final response = await http
+          .post(
+            url,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ${user.token}',
+            },
+            body: jsonEncode(requestBody),
+          )
+          .timeout(const Duration(seconds: 30));
+
+      if (!mounted) return;
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final responseData = jsonDecode(response.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('上传成功！记录ID: ${responseData['recordId']}'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('上传失败: ${response.statusCode} - ${response.body}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      String errorMessage = '上传失败';
+      if (e is http.ClientException) {
+        errorMessage = '网络错误: ${e.message}';
+      } else if (e.toString().contains('Timeout')) {
+        errorMessage = '上传超时（30秒）';
+      } else {
+        errorMessage = '上传失败: $e';
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUploading = false;
+        });
+      }
+    }
   }
 
   @override
@@ -372,6 +539,41 @@ class _TrackRecordDetailPageState extends State<TrackRecordDetailPage> {
                 ],
               ),
             ),
+      // 底部上传按钮
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.all(16),
+        child: SizedBox(
+          width: double.infinity,
+          height: 56,
+          child: ElevatedButton.icon(
+            onPressed: _isUploading ? null : _uploadToCloud,
+            icon: _isUploading
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : const Icon(Icons.cloud_upload, size: 28),
+            label: Text(
+              _isUploading ? '上传中...' : '上传云端',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _isUploading
+                  ? Colors.grey[700]
+                  : const Color(0xFF2196F3),
+              foregroundColor: Colors.white,
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
