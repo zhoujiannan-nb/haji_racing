@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../models/track.dart';
@@ -51,8 +50,7 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
   double _totalDistance = 0; // 累计距离（米）
 
   // JSON轨迹数据相关
-  List<Map<String, dynamic>> _trajectoryPoints = []; // 轨迹点列表
-  String? _trajectoryFilePath; // 临时JSON文件路径
+  List<Map<String, dynamic>> _trajectoryPoints = []; // 轨迹点列表（内存存储）
 
   @override
   void initState() {
@@ -224,9 +222,8 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
       _recordId = await _db.createTrackRecord(record);
       _pointSequence = 0;
 
-      // 重置轨迹数据相关变量，确保每次运行都使用新的临时文件
+      // 重置轨迹数据相关变量
       _trajectoryPoints.clear();
-      _trajectoryFilePath = null;
 
       debugPrint('📝 创建轨迹记录，ID: $_recordId');
 
@@ -362,7 +359,7 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
       }
     }
 
-    // 只有在计时中才保存轨迹点到JSON文件这样确保只记录有效比赛过程中的轨迹点
+    // 只有在计时中才保存轨迹点到内存
     if (_isTiming && _recordId != null) {
       final pointData = {
         'latitude': location.latitude,
@@ -373,9 +370,6 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
       };
 
       _trajectoryPoints.add(pointData);
-
-      // 实时追加写入到临时文件
-      await _appendPointToFile(pointData);
     }
 
     // 更新通知（每秒更新一次）
@@ -402,68 +396,33 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
     });
   }
 
-  /// 追加轨迹点到临时JSON文件
-  Future<void> _appendPointToFile(Map<String, dynamic> pointData) async {
-    try {
-      // 如果还没有创建临时文件，则创建（每次都生成新的唯一文件名）
-      if (_trajectoryFilePath == null) {
-        final tempDir = Directory.systemTemp;
-        // 使用时间戳+随机数确保文件名唯一，避免重复使用旧文件
-        final timestamp = DateTime.now().millisecondsSinceEpoch;
-        final randomSuffix = DateTime.now().microsecondsSinceEpoch % 10000;
-        _trajectoryFilePath =
-            '${tempDir.path}/trajectory_${_recordId}_${timestamp}_${randomSuffix}.json';
-
-        // 创建初始JSON文件
-        final initialData = {
-          'points': [pointData],
-        };
-        final file = File(_trajectoryFilePath!);
-        await file.writeAsString(jsonEncode(initialData));
-        debugPrint('📁 创建临时轨迹文件: $_trajectoryFilePath');
-      } else {
-        // 读取现有JSON数据
-        final file = File(_trajectoryFilePath!);
-        String content = await file.readAsString();
-        Map<String, dynamic> jsonData = jsonDecode(content);
-
-        // 添加新点
-        List<dynamic> points = jsonData['points'] ?? [];
-        points.add(pointData);
-        jsonData['points'] = points;
-
-        // 写回文件
-        await file.writeAsString(jsonEncode(jsonData));
-      }
-    } catch (e) {
-      debugPrint('追加轨迹点到文件失败: $e');
-    }
-  }
-
-  /// 将JSON文件中的轨迹数据保存到数据库
+  /// 将内存中的轨迹数据保存到数据库
   Future<void> _saveTrajectoryToDatabase() async {
-    if (_trajectoryFilePath == null ||
-        !File(_trajectoryFilePath!).existsSync()) {
+    if (_trajectoryPoints.isEmpty) {
+      debugPrint('⚠️ 没有轨迹点需要保存');
       return;
     }
 
     try {
-      // 读取JSON文件内容
-      final file = File(_trajectoryFilePath!);
-      String content = await file.readAsString();
+      // 构建JSON数据
+      final jsonData = {'points': _trajectoryPoints};
+      final content = jsonEncode(jsonData);
+
+      debugPrint('📊 准备保存 ${_trajectoryPoints.length} 个轨迹点');
 
       // 更新记录中的trajectoryJson字段
       if (_recordId != null) {
         final record = await _db.getTrackRecord(_recordId!);
         if (record != null) {
           await _db.updateTrackRecord(record.copyWith(trajectoryJson: content));
+          debugPrint('✅ 已更新记录的trajectoryJson字段');
+        } else {
+          debugPrint('❌ 找不到记录 ID: $_recordId');
+          return;
         }
 
         // 解析JSON并插入轨迹点到track_points表（混合存储）
-        Map<String, dynamic> jsonData = jsonDecode(content);
-        List<dynamic> points = jsonData['points'] ?? [];
-
-        List<TrackPoint> trackPoints = points.map((pointData) {
+        List<TrackPoint> trackPoints = _trajectoryPoints.map((pointData) {
           return TrackPoint(
             recordId: _recordId!,
             latitude: pointData['latitude'],
@@ -481,12 +440,11 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
         }
       }
 
-      // 删除临时文件
-      await file.delete();
-      _trajectoryFilePath = null;
+      // 清空内存数据
       _trajectoryPoints.clear();
+      debugPrint('🗑️ 已清空内存中的轨迹点');
     } catch (e) {
-      debugPrint('保存轨迹数据到数据库失败: $e');
+      debugPrint('❌ 保存轨迹数据到数据库失败: $e');
     }
   }
 

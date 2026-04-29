@@ -778,7 +778,7 @@ class DatabaseHelper {
     final db = await database;
     final result = await db.query(
       'track_records',
-      where: 'userId = ? AND duration IS NOT NULL',
+      where: 'userId = ?',
       whereArgs: [userId],
       orderBy: 'startTime DESC',
     );
