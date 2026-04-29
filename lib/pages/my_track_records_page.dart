@@ -1,8 +1,10 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../models/track_record.dart';
 import '../models/track.dart';
 import '../models/car.dart';
 import '../database/database_helper.dart';
+import '../utils/location_utils.dart';
 import 'track_record_detail_page.dart';
 
 class MyTrackRecordsPage extends StatefulWidget {
@@ -58,6 +60,46 @@ class _MyTrackRecordsPageState extends State<MyTrackRecordsPage> {
         }
       }
 
+      // 修复缺少时间的记录
+      for (var record in records) {
+        if (_needsTimeCalculation(record)) {
+          final track = _trackCache[record.trackId];
+          if (track != null) {
+            debugPrint('🔧 检测到记录 ${record.id} 缺少时间信息，开始计算...');
+
+            final times = await _calculateTimesFromTrajectory(
+              record: record,
+              track: track,
+            );
+
+            if (times != null) {
+              await _updateRecordTimes(
+                record: record,
+                startTime: times['startTime'],
+                endTime: times['endTime'],
+                duration: times['duration'],
+              );
+
+              debugPrint(
+                '✅ 记录 ${record.id} 时间计算完成: duration=${times['duration']}s',
+              );
+
+              // 更新内存中的记录
+              final index = records.indexWhere((r) => r.id == record.id);
+              if (index != -1) {
+                records[index] = record.copyWith(
+                  startTime: times['startTime'],
+                  endTime: times['endTime'],
+                  duration: times['duration'],
+                );
+              }
+            } else {
+              debugPrint('⚠️ 记录 ${record.id} 无法计算时间（无轨迹数据）');
+            }
+          }
+        }
+      }
+
       setState(() {
         _records = records;
         _isLoading = false;
@@ -91,6 +133,135 @@ class _MyTrackRecordsPageState extends State<MyTrackRecordsPage> {
     } catch (e) {
       return dateTimeStr;
     }
+  }
+
+  /// 检查记录是否需要修复时间计算
+  bool _needsTimeCalculation(TrackRecord record) {
+    // 检查 duration 是否为 null 或 0
+    final durationInvalid = record.duration == null || record.duration == 0;
+    // 检查 endTime 是否为 null 或空字符串
+    final endTimeInvalid = record.endTime == null || record.endTime!.isEmpty;
+
+    return durationInvalid && endTimeInvalid;
+  }
+
+  /// 从 trajectoryJson 解析轨迹点
+  List<Map<String, dynamic>>? _parseTrajectoryPoints(String? trajectoryJson) {
+    if (trajectoryJson == null || trajectoryJson.isEmpty) {
+      return null;
+    }
+
+    try {
+      final jsonData = jsonDecode(trajectoryJson);
+      if (jsonData is Map<String, dynamic> && jsonData['points'] is List) {
+        return List<Map<String, dynamic>>.from(jsonData['points']);
+      }
+    } catch (e) {
+      debugPrint('解析 trajectoryJson 失败: $e');
+    }
+
+    return null;
+  }
+
+  /// 从轨迹数据计算开始和结束时间
+  Future<Map<String, dynamic>?> _calculateTimesFromTrajectory({
+    required TrackRecord record,
+    required Track track,
+  }) async {
+    // 解析轨迹点
+    final points = _parseTrajectoryPoints(record.trajectoryJson);
+    if (points == null || points.isEmpty) {
+      return null;
+    }
+
+    // 按时间顺序排序（根据 timestamp 字段）
+    points.sort((a, b) {
+      final timeA = a['timestamp'] as String;
+      final timeB = b['timestamp'] as String;
+      return timeA.compareTo(timeB);
+    });
+
+    String? calculatedStartTime;
+    String? calculatedEndTime;
+
+    // 遍历所有轨迹点，查找起点和终点
+    for (final point in points) {
+      final lat = point['latitude'] as double;
+      final lon = point['longitude'] as double;
+      final speed = point['speed'] as double? ?? 0;
+      final timestamp = point['timestamp'] as String;
+
+      // 检查是否在起点围栏内且速度 >= 15 km/h
+      if (calculatedStartTime == null) {
+        final isInStartArea = LocationUtils.isPointInPolygon(
+          pointLat: lat,
+          pointLon: lon,
+          polygon: track.startPolygon,
+        );
+
+        if (isInStartArea && speed >= 15) {
+          calculatedStartTime = timestamp;
+        }
+      }
+
+      // 检查是否在终点围栏内
+      if (calculatedEndTime == null && calculatedStartTime != null) {
+        final isInEndArea = LocationUtils.isPointInPolygon(
+          pointLat: lat,
+          pointLon: lon,
+          polygon: track.endPolygon,
+        );
+
+        if (isInEndArea) {
+          calculatedEndTime = timestamp;
+        }
+      }
+
+      // 如果已经找到开始和结束时间，提前退出
+      if (calculatedStartTime != null && calculatedEndTime != null) {
+        break;
+      }
+    }
+
+    // 如果没有找到有效的开始和结束时间，使用默认值
+    if (calculatedStartTime == null || calculatedEndTime == null) {
+      calculatedStartTime = '2026-01-01T00:00:00.000Z';
+      calculatedEndTime = '2099-01-01T00:00:00.000Z';
+      // duration = 999分钟 = 59940秒
+      return {
+        'startTime': calculatedStartTime,
+        'endTime': calculatedEndTime,
+        'duration': 59940.0,
+      };
+    }
+
+    // 计算 duration（秒）
+    final startDateTime = DateTime.parse(calculatedStartTime);
+    final endDateTime = DateTime.parse(calculatedEndTime);
+    final duration =
+        endDateTime.difference(startDateTime).inMilliseconds / 1000.0;
+
+    return {
+      'startTime': calculatedStartTime,
+      'endTime': calculatedEndTime,
+      'duration': duration,
+    };
+  }
+
+  /// 更新记录的时间信息到数据库
+  Future<void> _updateRecordTimes({
+    required TrackRecord record,
+    required String startTime,
+    required String endTime,
+    required double duration,
+  }) async {
+    final updatedRecord = record.copyWith(
+      startTime: startTime,
+      endTime: endTime,
+      duration: duration,
+    );
+
+    await _db.updateTrackRecord(updatedRecord);
   }
 
   Future<void> _deleteRecord(int recordId) async {
