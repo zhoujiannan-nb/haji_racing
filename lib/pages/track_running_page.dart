@@ -210,7 +210,6 @@ class _TrackRunningPageState extends State<TrackRunningPage> {
       final mainCar = await _db.getMainCar();
 
       // 创建轨迹记录（初始状态为incomplete）
-      // 注意：此时只是创建了记录，还没有开始计时和记录轨迹点
       final record = TrackRecord(
         userId: user.id!,
         trackId: widget.track.id!,
