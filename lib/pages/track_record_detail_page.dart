@@ -273,6 +273,117 @@ class _TrackRecordDetailPageState extends State<TrackRecordDetailPage> {
     }
   }
 
+  /// 重新计算时间（使用 trajectoryJson 中的第一个和最后一个点）
+  Future<void> _recalculateTimes() async {
+    // 检查是否有 trajectoryJson
+    if (widget.record.trajectoryJson == null ||
+        widget.record.trajectoryJson!.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('该记录没有轨迹数据，无法重新计算'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+
+    // 显示确认对话框
+    final shouldRecalculate = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        title: const Text('重新计算时间', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          '将使用轨迹数据中的第一个点作为开始时间，最后一个点作为结束时间，并使用最后一个点的 sequence 作为 duration（秒）。\n\n确定要继续吗？',
+          style: TextStyle(color: Colors.white),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF3D00),
+            ),
+            child: const Text('确定'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldRecalculate != true) return;
+
+    try {
+      // 解析 trajectoryJson
+      final jsonData = jsonDecode(widget.record.trajectoryJson!);
+      if (jsonData is! Map<String, dynamic> || jsonData['points'] is! List) {
+        throw Exception('轨迹数据格式错误');
+      }
+
+      final points = List<Map<String, dynamic>>.from(jsonData['points']);
+      if (points.isEmpty) {
+        throw Exception('轨迹数据为空');
+      }
+
+      // 按 sequence 排序
+      points.sort((a, b) {
+        final seqA = a['sequence'] as int? ?? 0;
+        final seqB = b['sequence'] as int? ?? 0;
+        return seqA.compareTo(seqB);
+      });
+
+      // 获取第一个点和最后一个点
+      final firstPoint = points.first;
+      final lastPoint = points.last;
+
+      final startTime = firstPoint['timestamp'] as String?;
+      final endTime = lastPoint['timestamp'] as String?;
+      final duration = (lastPoint['sequence'] as int? ?? 0).toDouble();
+
+      if (startTime == null || endTime == null) {
+        throw Exception('轨迹点缺少时间戳信息');
+      }
+
+      debugPrint('🔧 重新计算时间:');
+      debugPrint('   开始时间: $startTime');
+      debugPrint('   结束时间: $endTime');
+      debugPrint(
+        '   Duration: ${duration}s (来自 sequence: ${lastPoint['sequence']})',
+      );
+
+      // 更新数据库
+      final updatedRecord = widget.record.copyWith(
+        startTime: startTime,
+        endTime: endTime,
+        duration: duration,
+      );
+
+      await _db.updateTrackRecord(updatedRecord);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('重新计算成功！用时: ${_formatDuration(duration)}'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        // 重新加载详情
+        await _loadDetails();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('重新计算失败: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -539,39 +650,73 @@ class _TrackRecordDetailPageState extends State<TrackRecordDetailPage> {
                 ],
               ),
             ),
-      // 底部上传按钮
+      // 底部按钮
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.all(16),
-        child: SizedBox(
-          width: double.infinity,
-          height: 56,
-          child: ElevatedButton.icon(
-            onPressed: _isUploading ? null : _uploadToCloud,
-            icon: _isUploading
-                ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+        child: Row(
+          children: [
+            // 重新计算时间按钮
+            Expanded(
+              child: SizedBox(
+                height: 56,
+                child: ElevatedButton.icon(
+                  onPressed: _recalculateTimes,
+                  icon: const Icon(Icons.refresh, size: 24),
+                  label: const Text(
+                    '重新计算时间',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFF3D00),
+                    foregroundColor: Colors.white,
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                  )
-                : const Icon(Icons.cloud_upload, size: 28),
-            label: Text(
-              _isUploading ? '上传中...' : '上传云端',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _isUploading
-                  ? Colors.grey[700]
-                  : const Color(0xFF2196F3),
-              foregroundColor: Colors.white,
-              elevation: 4,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
               ),
             ),
-          ),
+            const SizedBox(width: 12),
+            // 上传云端按钮
+            Expanded(
+              child: SizedBox(
+                height: 56,
+                child: ElevatedButton.icon(
+                  onPressed: _isUploading ? null : _uploadToCloud,
+                  icon: _isUploading
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
+                          ),
+                        )
+                      : const Icon(Icons.cloud_upload, size: 24),
+                  label: Text(
+                    _isUploading ? '上传中...' : '上传云端',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _isUploading
+                        ? Colors.grey[700]
+                        : const Color(0xFF2196F3),
+                    foregroundColor: Colors.white,
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
