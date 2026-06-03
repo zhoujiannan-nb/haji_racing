@@ -4,9 +4,6 @@
   "tracks": [
     "yunshi_sprint.json",
     "yunshi_enduro.json",
-    "tianhuang.json",
-    "xihuttshort.json",
-    "xihuttlong.json",
-    "test_road.json"
+    "tianhuang.json"
   ]
 }
