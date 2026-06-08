@@ -92,9 +92,9 @@ dependencies {
     // DataStore
     implementation("androidx.datastore:datastore-preferences:1.1.1")
 
-    // Gaode Map SDK
-    implementation("com.amap.api:map2d:6.0.0")
-    implementation("com.amap.api:location:6.4.5")
+    // Gaode Map SDK (3dmap includes location functionality)
+    implementation("com.amap.api:3dmap:9.5.0")
+    implementation("com.amap.api:search:9.5.0")
 
     // Accompanist (permissions)
     implementation("com.google.accompanist:accompanist-permissions:0.36.0")

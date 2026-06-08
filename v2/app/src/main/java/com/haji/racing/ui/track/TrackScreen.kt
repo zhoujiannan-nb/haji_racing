@@ -31,7 +31,7 @@ fun TrackScreen(
             TopAppBar(
                 title = { Text("赛道管理") },
                 actions = {
-                    IconButton(onClick = { /* TODO: navigate to create track */ }) {
+                    IconButton(onClick = { navController.navigate("createTrack") }) {
                         Icon(Icons.Default.Add, contentDescription = "创建赛道")
                     }
                 }
@@ -40,7 +40,7 @@ fun TrackScreen(
         floatingActionButton = {
             if (selectedTab == 1) {
                 ExtendedFloatingActionButton(
-                    onClick = { /* TODO: create custom track */ },
+                    onClick = { navController.navigate("createTrack") },
                     icon = { Icon(Icons.Default.Add, "创建") },
                     text = { Text("创建赛道") }
                 )
