@@ -6,7 +6,7 @@ import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
 import android.os.Bundle
-import com.haji.racing.core.gps.CoordinateConverter.wgs84ToGcj02
+import com.haji.racing.core.common.CoordinateConverter.wgs84ToGcj02
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow

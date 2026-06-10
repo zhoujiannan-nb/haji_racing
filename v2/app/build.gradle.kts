@@ -94,7 +94,6 @@ dependencies {
 
     // Gaode Map SDK (3dmap includes location functionality)
     implementation("com.amap.api:3dmap:9.5.0")
-    implementation("com.amap.api:search:9.5.0")
 
     // Accompanist (permissions)
     implementation("com.google.accompanist:accompanist-permissions:0.36.0")
