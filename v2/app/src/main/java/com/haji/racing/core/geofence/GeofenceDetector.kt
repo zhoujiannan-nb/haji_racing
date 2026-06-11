@@ -1,5 +1,6 @@
 package com.haji.racing.core.geofence
 
+import com.haji.racing.domain.model.FencePoint
 import kotlin.math.*
 
 object GeofenceDetector {
@@ -7,6 +8,28 @@ object GeofenceDetector {
     fun isInsideCircle(lat: Double, lng: Double, centerLat: Double, centerLng: Double, radiusMeters: Double): Boolean {
         val distance = haversineDistance(lat, lng, centerLat, centerLng)
         return distance <= radiusMeters
+    }
+
+    fun isInsidePolygon(lat: Double, lng: Double, polygon: List<FencePoint>): Boolean {
+        if (polygon.size < 3) return false
+        
+        var inside = false
+        var j = polygon.size - 1
+        
+        for (i in polygon.indices) {
+            val xi = polygon[i].lng
+            val yi = polygon[i].lat
+            val xj = polygon[j].lng
+            val yj = polygon[j].lat
+            
+            val intersect = ((yi > lat) != (yj > lat)) &&
+                (lng < (xj - xi) * (lat - yi) / (yj - yi) + xi)
+            
+            if (intersect) inside = !inside
+            j = i
+        }
+        
+        return inside
     }
 
     private fun haversineDistance(lat1: Double, lng1: Double, lat2: Double, lng2: Double): Double {

@@ -10,16 +10,17 @@ data class TrackDto(
     val uid: String,
     val name: String,
     val type: String,
-    val startLat: Double,
-    val startLng: Double,
-    val startFenceRadius: Double,
-    val endLat: Double,
-    val endLng: Double,
-    val endFenceRadius: Double,
+    val startFencePoints: List<FencePointDto> = emptyList(),
+    val endFencePoints: List<FencePointDto> = emptyList(),
     val totalDistance: Double,
     val creatorUid: String?,
     val createdAt: Long,
     val updatedAt: Long,
+)
+
+data class FencePointDto(
+    val lat: Double,
+    val lng: Double,
 )
 
 data class RecordingDto(

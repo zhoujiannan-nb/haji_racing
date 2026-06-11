@@ -4,18 +4,18 @@ data class Track(
     val uid: String,
     val name: String,
     val type: String,
-    val startLat: Double,
-    val startLng: Double,
-    val startFenceRadius: Double,
-    val endLat: Double,
-    val endLng: Double,
-    val endFenceRadius: Double,
+    val startFencePoints: List<FencePoint> = emptyList(),
+    val endFencePoints: List<FencePoint> = emptyList(),
     val totalDistance: Double,
     val creatorUid: String?,
     val isSynced: Boolean,
     val createdAt: Long,
     val updatedAt: Long,
-    val points: List<TrackPoint> = emptyList(),
+)
+
+data class FencePoint(
+    val lat: Double,
+    val lng: Double,
 )
 
 data class TrackPoint(

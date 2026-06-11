@@ -2,6 +2,7 @@ package com.haji.racing.di
 
 import android.content.Context
 import androidx.room.Room
+import com.google.gson.Gson
 import com.haji.racing.data.local.db.HajiRacingDatabase
 import com.haji.racing.data.local.db.dao.*
 import com.haji.racing.data.remote.api.HajiApi
@@ -49,6 +50,10 @@ object NetworkModule {
 @Module
 @InstallIn(SingletonComponent::class)
 object RepositoryModule {
+
+    @Provides
+    @Singleton
+    fun provideGson(): Gson = Gson()
 
     @Provides
     @Singleton

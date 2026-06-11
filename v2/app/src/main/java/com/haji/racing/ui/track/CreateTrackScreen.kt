@@ -33,8 +33,8 @@ import com.amap.api.maps.model.*
 import com.haji.racing.core.gps.GpsPoint
 import com.haji.racing.data.remote.GeocodingService
 import com.haji.racing.core.gps.GpsTracker
+import com.haji.racing.domain.model.FencePoint
 import com.haji.racing.domain.model.Track
-import com.haji.racing.domain.model.TrackPoint
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -47,12 +47,11 @@ import javax.inject.Inject
 
 data class CreateTrackState(
     val trackName: String = "",
-    val startPoint: GeocodingService.GeoPoint? = null,
-    val endPoint: GeocodingService.GeoPoint? = null,
-    val startFenceRadius: Double = 50.0,
-    val endFenceRadius: Double = 50.0,
-    val trackPoints: List<TrackPoint> = emptyList(),
+    val startFencePoints: List<LatLng> = emptyList(),
+    val endFencePoints: List<LatLng> = emptyList(),
     val isSaving: Boolean = false,
+    val showSaveDialog: Boolean = false,
+    val showSuccessDialog: Boolean = false,
     val errorMessage: String? = null,
 )
 
@@ -166,22 +165,36 @@ class CreateTrackViewModel @Inject constructor(
         _state.value = _state.value.copy(trackName = name)
     }
 
-    fun setStartPoint(point: GeocodingService.GeoPoint, radius: Double = 50.0) {
-        _state.value = _state.value.copy(startPoint = point, startFenceRadius = radius)
-    }
-
-    fun setEndPoint(point: GeocodingService.GeoPoint, radius: Double = 50.0) {
-        _state.value = _state.value.copy(endPoint = point, endFenceRadius = radius)
-    }
-
-    fun addTrackPoint(point: TrackPoint) {
+    fun addStartFencePoint(point: LatLng) {
         _state.value = _state.value.copy(
-            trackPoints = _state.value.trackPoints + point
+            startFencePoints = _state.value.startFencePoints + point
         )
     }
 
-    fun clearTrackPoints() {
-        _state.value = _state.value.copy(trackPoints = emptyList())
+    fun addEndFencePoint(point: LatLng) {
+        _state.value = _state.value.copy(
+            endFencePoints = _state.value.endFencePoints + point
+        )
+    }
+
+    fun clearStartFence() {
+        _state.value = _state.value.copy(startFencePoints = emptyList())
+    }
+
+    fun clearEndFence() {
+        _state.value = _state.value.copy(endFencePoints = emptyList())
+    }
+
+    fun showSaveDialog() {
+        _state.value = _state.value.copy(showSaveDialog = true)
+    }
+
+    fun hideSaveDialog() {
+        _state.value = _state.value.copy(showSaveDialog = false)
+    }
+
+    fun hideSuccessDialog() {
+        _state.value = _state.value.copy(showSuccessDialog = false)
     }
 
     fun saveTrack(creatorUid: String) {
@@ -191,56 +204,63 @@ class CreateTrackViewModel @Inject constructor(
                 _state.value = currentState.copy(errorMessage = "请输入赛道名称")
                 return@launch
             }
-            if (currentState.startPoint == null) {
-                _state.value = currentState.copy(errorMessage = "请设置起点")
+            if (currentState.startFencePoints.size < 3) {
+                _state.value = currentState.copy(errorMessage = "请至少绘制3个起点围栏点")
                 return@launch
             }
-            if (currentState.endPoint == null) {
-                _state.value = currentState.copy(errorMessage = "请设置终点")
-                return@launch
-            }
-            if (currentState.trackPoints.size < 2) {
-                _state.value = currentState.copy(errorMessage = "请至少绘制2个赛道点位")
+            if (currentState.endFencePoints.size < 3) {
+                _state.value = currentState.copy(errorMessage = "请至少绘制3个终点围栏点")
                 return@launch
             }
 
             _state.value = currentState.copy(isSaving = true, errorMessage = null)
 
             try {
-                var totalDistance = 0.0
-                for (i in 1 until currentState.trackPoints.size) {
-                    val prev = currentState.trackPoints[i - 1]
-                    val curr = currentState.trackPoints[i]
-                    totalDistance += calculateDistance(prev.lat, prev.lng, curr.lat, curr.lng)
-                }
+                // 计算起点和终点中心点之间的距离作为总距离
+                val startCenter = calculateCenter(currentState.startFencePoints)
+                val endCenter = calculateCenter(currentState.endFencePoints)
+                val totalDistance = calculateDistance(
+                    startCenter.latitude, startCenter.longitude,
+                    endCenter.latitude, endCenter.longitude
+                )
 
                 val track = Track(
                     uid = UUID.randomUUID().toString(),
                     name = currentState.trackName,
                     type = "custom",
-                    startLat = currentState.startPoint!!.latitude,
-                    startLng = currentState.startPoint!!.longitude,
-                    startFenceRadius = currentState.startFenceRadius,
-                    endLat = currentState.endPoint!!.latitude,
-                    endLng = currentState.endPoint!!.longitude,
-                    endFenceRadius = currentState.endFenceRadius,
+                    startFencePoints = currentState.startFencePoints.map {
+                        FencePoint(it.latitude, it.longitude)
+                    },
+                    endFencePoints = currentState.endFencePoints.map {
+                        FencePoint(it.latitude, it.longitude)
+                    },
                     totalDistance = totalDistance,
                     creatorUid = creatorUid,
                     isSynced = false,
                     createdAt = System.currentTimeMillis(),
                     updatedAt = System.currentTimeMillis(),
-                    points = currentState.trackPoints,
                 )
 
                 trackRepository.saveTrack(track)
-                _state.value = _state.value.copy(isSaving = false)
+                _state.value = _state.value.copy(
+                    isSaving = false,
+                    showSaveDialog = false,
+                    showSuccessDialog = true
+                )
             } catch (e: Exception) {
                 _state.value = currentState.copy(
                     isSaving = false,
+                    showSaveDialog = false,
                     errorMessage = "保存失败: ${e.message}"
                 )
             }
         }
+    }
+
+    private fun calculateCenter(points: List<LatLng>): LatLng {
+        val avgLat = points.sumOf { it.latitude } / points.size
+        val avgLng = points.sumOf { it.longitude } / points.size
+        return LatLng(avgLat, avgLng)
     }
 
     private fun calculateDistance(lat1: Double, lng1: Double, lat2: Double, lng2: Double): Double {
@@ -329,7 +349,7 @@ fun CreateTrackScreen(
                 },
                 actions = {
                     IconButton(
-                        onClick = { viewModel.saveTrack("current-user-uid") },
+                        onClick = { viewModel.showSaveDialog() },
                         enabled = !state.isSaving
                     ) {
                         if (state.isSaving) {
@@ -347,19 +367,6 @@ fun CreateTrackScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // 赛道名称输入
-            OutlinedTextField(
-                value = state.trackName,
-                onValueChange = { viewModel.updateTrackName(it) },
-                label = { Text("赛道名称") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { /* 关闭键盘 */ }),
-                singleLine = true,
-            )
-
             // 搜索栏（通过高德 Web API 实时建议下拉）
             TrackSearchBar(
                 query = searchQuery,
@@ -447,13 +454,6 @@ fun CreateTrackScreen(
                 ) {
                     Text("设置终点")
                 }
-                Button(
-                    onClick = { drawingMode = DrawingMode.TRACK },
-                    modifier = Modifier.weight(1f),
-                    enabled = drawingMode != DrawingMode.TRACK
-                ) {
-                    Text("绘制赛道")
-                }
             }
 
             // 错误提示
@@ -467,12 +467,40 @@ fun CreateTrackScreen(
             }
         }
     }
+    
+    // 保存赛道对话框
+    if (state.showSaveDialog) {
+        SaveTrackDialog(
+            trackName = state.trackName,
+            onNameChange = { viewModel.updateTrackName(it) },
+            onConfirm = { viewModel.saveTrack("current-user-uid") },
+            onDismiss = { viewModel.hideSaveDialog() },
+            isSaving = state.isSaving
+        )
+    }
+    
+    // 保存成功对话框
+    if (state.showSuccessDialog) {
+        AlertDialog(
+            onDismissRequest = { viewModel.hideSuccessDialog() },
+            title = { Text("保存成功") },
+            text = { Text("赛道已成功保存！") },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.hideSuccessDialog()
+                    navController.navigateUp()
+                }) {
+                    Text("确定")
+                }
+            }
+        )
+    }
 }
 
 // ── 辅助类型 ───────────────────────────────────────────────
 
 enum class DrawingMode {
-    NONE, START, END, TRACK
+    NONE, START, END
 }
 
 // ── 地图相关函数 ───────────────────────────────────────────
@@ -510,59 +538,122 @@ private fun setupMapInteraction(
     aMap.setOnMapClickListener { latLng ->
         when (drawingMode) {
             DrawingMode.START -> {
-                aMap.clear()
-                aMap.addMarker(
-                    MarkerOptions()
-                        .position(latLng)
-                        .title("起点")
-                        .snippet("半径: 50米")
-                        .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN))
-                )
-                aMap.addCircle(
-                    CircleOptions()
-                        .center(latLng)
-                        .radius(50.0)
-                        .strokeColor(Color.BLUE)
-                        .fillColor(Color.argb(50, 0, 0, 255))
-                        .strokeWidth(2f)
-                )
-                viewModel.setStartPoint(GeocodingService.GeoPoint(latLng.latitude, latLng.longitude))
+                viewModel.addStartFencePoint(latLng)
+                redrawAllFences(aMap, viewModel.state.value)
             }
             DrawingMode.END -> {
-                aMap.addMarker(
-                    MarkerOptions()
-                        .position(latLng)
-                        .title("终点")
-                        .snippet("半径: 50米")
-                        .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED))
-                )
-                aMap.addCircle(
-                    CircleOptions()
-                        .center(latLng)
-                        .radius(50.0)
-                        .strokeColor(Color.RED)
-                        .fillColor(Color.argb(50, 255, 0, 0))
-                        .strokeWidth(2f)
-                )
-                viewModel.setEndPoint(GeocodingService.GeoPoint(latLng.latitude, latLng.longitude))
-            }
-            DrawingMode.TRACK -> {
-                viewModel.addTrackPoint(
-                    TrackPoint(
-                        lat = latLng.latitude,
-                        lng = latLng.longitude,
-                        sequenceIndex = viewModel.state.value.trackPoints.size
-                    )
-                )
-                aMap.addMarker(
-                    MarkerOptions()
-                        .position(latLng)
-                        .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE))
-                )
+                viewModel.addEndFencePoint(latLng)
+                redrawAllFences(aMap, viewModel.state.value)
             }
             DrawingMode.NONE -> { /* 无操作 */ }
         }
     }
+}
+
+private fun redrawAllFences(aMap: AMap, state: CreateTrackState) {
+    aMap.clear()
+    
+    // 绘制起点围栏
+    drawStartFencePoints(aMap, state.startFencePoints)
+    
+    // 绘制终点围栏
+    drawEndFencePoints(aMap, state.endFencePoints)
+}
+
+private fun drawStartFencePoints(aMap: AMap, points: List<LatLng>) {
+    if (points.isEmpty()) return
+    
+    // 绘制点
+    points.forEachIndexed { index, point ->
+        aMap.addMarker(
+            MarkerOptions()
+                .position(point)
+                .title("起点围栏点 ${index + 1}")
+                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN))
+        )
+    }
+    
+    // 如果有3个或以上点，绘制多边形
+    if (points.size >= 3) {
+        aMap.addPolygon(
+            PolygonOptions()
+                .addAll(points)
+                .strokeColor(Color.GREEN)
+                .fillColor(Color.argb(50, 0, 255, 0))
+                .strokeWidth(3f)
+        )
+        
+        // 绘制方向箭头（在第一条边上）
+        drawDirectionArrow(aMap, points[0], points[1], Color.GREEN)
+    } else if (points.size == 2) {
+        // 只有2个点时绘制线段
+        aMap.addPolyline(
+            PolylineOptions()
+                .add(points[0], points[1])
+                .color(Color.GREEN)
+                .width(4f)
+        )
+    }
+}
+
+private fun drawEndFencePoints(aMap: AMap, points: List<LatLng>) {
+    if (points.isEmpty()) return
+    
+    // 绘制点
+    points.forEachIndexed { index, point ->
+        aMap.addMarker(
+            MarkerOptions()
+                .position(point)
+                .title("终点围栏点 ${index + 1}")
+                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED))
+        )
+    }
+    
+    // 如果有3个或以上点，绘制多边形
+    if (points.size >= 3) {
+        aMap.addPolygon(
+            PolygonOptions()
+                .addAll(points)
+                .strokeColor(Color.RED)
+                .fillColor(Color.argb(50, 255, 0, 0))
+                .strokeWidth(3f)
+        )
+        
+        // 绘制方向箭头（在最后一条边上，指向内部）
+        drawDirectionArrow(aMap, points[points.size - 1], points[0], Color.RED)
+    } else if (points.size == 2) {
+        // 只有2个点时绘制线段
+        aMap.addPolyline(
+            PolylineOptions()
+                .add(points[0], points[1])
+                .color(Color.RED)
+                .width(4f)
+        )
+    }
+}
+
+private fun drawDirectionArrow(aMap: AMap, from: LatLng, to: LatLng, color: Int) {
+    // 计算方向角度
+    val angle = Math.atan2(
+        to.longitude - from.longitude,
+        to.latitude - from.latitude
+    )
+    
+    // 计算箭头位置（线段中点）
+    val midLat = (from.latitude + to.latitude) / 2
+    val midLng = (from.longitude + to.longitude) / 2
+    val midPoint = LatLng(midLat, midLng)
+    
+    // 添加箭头标记
+    aMap.addMarker(
+        MarkerOptions()
+            .position(midPoint)
+            .title("方向")
+            .snippet("进入方向")
+            .icon(BitmapDescriptorFactory.fromResource(android.R.drawable.ic_media_play))
+            .anchor(0.5f, 0.5f)
+            .rotateAngle(Math.toDegrees(angle).toFloat())
+    )
 }
 
 // ── 搜索栏组件 ─────────────────────────────────────────────
@@ -633,4 +724,50 @@ private fun TrackSearchBar(
             }
         }
     }
+}
+
+// ── 保存赛道对话框 ─────────────────────────────────────────
+
+@Composable
+private fun SaveTrackDialog(
+    trackName: String,
+    onNameChange: (String) -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+    isSaving: Boolean,
+) {
+    AlertDialog(
+        onDismissRequest = { if (!isSaving) onDismiss() },
+        title = { Text("保存赛道") },
+        text = {
+            OutlinedTextField(
+                value = trackName,
+                onValueChange = onNameChange,
+                label = { Text("赛道名称") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                enabled = !isSaving
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                enabled = trackName.isNotBlank() && !isSaving
+            ) {
+                if (isSaving) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                } else {
+                    Text("保存")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                enabled = !isSaving
+            ) {
+                Text("取消")
+            }
+        }
+    )
 }

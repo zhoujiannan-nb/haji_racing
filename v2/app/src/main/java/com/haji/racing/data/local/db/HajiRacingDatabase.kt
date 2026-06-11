@@ -13,7 +13,7 @@ import com.haji.racing.data.local.db.entity.*
         RecordingPointEntity::class,
         UserEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class HajiRacingDatabase : RoomDatabase() {

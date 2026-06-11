@@ -172,10 +172,9 @@ class RecordingService : LifecycleService() {
         when (_recordingData.value.state) {
             RecordingState.WAITING -> {
                 val shouldStart = if (mode == "track" && track != null) {
-                    GeofenceDetector.isInsideCircle(
+                    GeofenceDetector.isInsidePolygon(
                         fused.lat, fused.lng,
-                        track!!.startLat, track!!.startLng,
-                        track!!.startFenceRadius
+                        track!!.startFencePoints
                     ) && gpsPoint.speed >= 4.17 // 15 km/h in m/s
                 } else {
                     gpsPoint.speed >= 2.0 // any speed for cruise mode
@@ -191,10 +190,9 @@ class RecordingService : LifecycleService() {
                 updateRecordingState(fused, gpsPoint)
 
                 if (mode == "track" && track != null) {
-                    val atEnd = GeofenceDetector.isInsideCircle(
+                    val atEnd = GeofenceDetector.isInsidePolygon(
                         fused.lat, fused.lng,
-                        track!!.endLat, track!!.endLng,
-                        track!!.endFenceRadius
+                        track!!.endFencePoints
                     )
                     if (atEnd && passedStart) {
                         finishRecording()
