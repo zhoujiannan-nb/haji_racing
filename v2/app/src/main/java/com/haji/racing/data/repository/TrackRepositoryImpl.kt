@@ -43,6 +43,10 @@ class TrackRepositoryImpl @Inject constructor(
         type = type,
         startFencePoints = deserializeFencePoints(startFencePointsJson),
         endFencePoints = deserializeFencePoints(endFencePointsJson),
+        startDirectionFrom = deserializeFencePoint(startDirectionFromJson),
+        startDirectionTo = deserializeFencePoint(startDirectionToJson),
+        endDirectionFrom = deserializeFencePoint(endDirectionFromJson),
+        endDirectionTo = deserializeFencePoint(endDirectionToJson),
         totalDistance = totalDistance,
         creatorUid = creatorUid,
         isSynced = isSynced,
@@ -56,6 +60,10 @@ class TrackRepositoryImpl @Inject constructor(
         type = type,
         startFencePointsJson = serializeFencePoints(startFencePoints),
         endFencePointsJson = serializeFencePoints(endFencePoints),
+        startDirectionFromJson = serializeFencePoint(startDirectionFrom),
+        startDirectionToJson = serializeFencePoint(startDirectionTo),
+        endDirectionFromJson = serializeFencePoint(endDirectionFrom),
+        endDirectionToJson = serializeFencePoint(endDirectionTo),
         totalDistance = totalDistance,
         creatorUid = creatorUid,
         isSynced = isSynced,
@@ -71,5 +79,18 @@ class TrackRepositoryImpl @Inject constructor(
         if (json.isBlank() || json == "[]") return emptyList()
         val type = object : TypeToken<List<FencePoint>>() {}.type
         return gson.fromJson(json, type)
+    }
+
+    private fun serializeFencePoint(point: FencePoint?): String? {
+        return point?.let { gson.toJson(it) }
+    }
+
+    private fun deserializeFencePoint(json: String?): FencePoint? {
+        if (json.isNullOrBlank() || json == "null") return null
+        return try {
+            gson.fromJson(json, FencePoint::class.java)
+        } catch (e: Exception) {
+            null
+        }
     }
 }

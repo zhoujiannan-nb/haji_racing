@@ -19,12 +19,6 @@ class TrackViewModel @Inject constructor(
     val allTracks: StateFlow<List<Track>> = trackRepository.getAllTracks()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val officialTracks: StateFlow<List<Track>> = trackRepository.getTracksByType("official")
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    val customTracks: StateFlow<List<Track>> = trackRepository.getTracksByType("custom")
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
     fun saveTrack(track: Track) {
         viewModelScope.launch { trackRepository.saveTrack(track) }
     }

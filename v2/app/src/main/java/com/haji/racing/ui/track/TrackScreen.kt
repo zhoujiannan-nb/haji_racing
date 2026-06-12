@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,64 +21,30 @@ fun TrackScreen(
     navController: NavController,
     viewModel: TrackViewModel = hiltViewModel(),
 ) {
-    val officialTracks by viewModel.officialTracks.collectAsState()
-    val customTracks by viewModel.customTracks.collectAsState()
-    var selectedTab by remember { mutableIntStateOf(0) }
+    val tracks by viewModel.allTracks.collectAsState()
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("赛道管理") },
-                actions = {
-                    IconButton(onClick = { navController.navigate("createTrack") }) {
-                        Icon(Icons.Default.Add, contentDescription = "创建赛道")
-                    }
-                }
-            )
-        },
-        floatingActionButton = {
-            if (selectedTab == 1) {
-                ExtendedFloatingActionButton(
-                    onClick = { navController.navigate("createTrack") },
-                    icon = { Icon(Icons.Default.Add, "创建") },
-                    text = { Text("创建赛道") }
-                )
-            }
+            TopAppBar(title = { Text("赛道") })
         }
     ) { padding ->
-        Column(modifier = Modifier.padding(padding)) {
-            TabRow(selectedTabIndex = selectedTab) {
-                Tab(
-                    selected = selectedTab == 0,
-                    onClick = { selectedTab = 0 },
-                    text = { Text("热门赛道") }
-                )
-                Tab(
-                    selected = selectedTab == 1,
-                    onClick = { selectedTab = 1 },
-                    text = { Text("自定义赛道") }
-                )
-            }
-
-            when (selectedTab) {
-                0 -> TrackList(tracks = officialTracks, onDelete = null)
-                1 -> TrackList(
-                    tracks = customTracks,
-                    onDelete = { viewModel.deleteTrack(it.uid) }
-                )
-            }
-        }
+        TrackList(
+            tracks = tracks,
+            onDelete = { viewModel.deleteTrack(it.uid) },
+            modifier = Modifier.padding(padding)
+        )
     }
 }
 
 @Composable
 private fun TrackList(
     tracks: List<Track>,
-    onDelete: ((Track) -> Unit)?,
+    onDelete: (Track) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     if (tracks.isEmpty()) {
         Box(
-            modifier = Modifier.fillMaxSize(),
+            modifier = modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
             Text("暂无赛道", style = MaterialTheme.typography.bodyLarge)
@@ -88,7 +53,7 @@ private fun TrackList(
     }
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -101,7 +66,7 @@ private fun TrackList(
 @Composable
 private fun TrackCard(
     track: Track,
-    onDelete: ((Track) -> Unit)?,
+    onDelete: (Track) -> Unit,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -124,10 +89,8 @@ private fun TrackCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            if (onDelete != null) {
-                IconButton(onClick = { onDelete(track) }) {
-                    Icon(Icons.Default.Delete, contentDescription = "删除", tint = MaterialTheme.colorScheme.error)
-                }
+            IconButton(onClick = { onDelete(track) }) {
+                Icon(Icons.Default.Delete, contentDescription = "删除", tint = MaterialTheme.colorScheme.error)
             }
         }
     }

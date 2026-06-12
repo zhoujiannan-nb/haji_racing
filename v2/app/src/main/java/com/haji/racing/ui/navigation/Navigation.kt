@@ -28,7 +28,6 @@ import androidx.navigation.compose.rememberNavController
 import com.haji.racing.ui.history.HistoryScreen
 import com.haji.racing.ui.profile.ProfileScreen
 import com.haji.racing.ui.recording.RecordingScreen
-import com.haji.racing.ui.track.CreateTrackScreen
 import com.haji.racing.ui.track.TrackScreen
 import com.haji.racing.ui.video.VideoScreen
 
@@ -38,7 +37,6 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector,
     data object History : Screen("history", "轨迹", Icons.Outlined.History, Icons.Filled.History)
     data object Profile : Screen("profile", "我的", Icons.Outlined.Person, Icons.Filled.Person)
     data object Video : Screen("video", "视频", Icons.Outlined.History, Icons.Filled.History)
-    data object CreateTrack : Screen("createTrack", "创建赛道", Icons.Outlined.Map, Icons.Filled.Map)
 }
 
 val bottomScreens = listOf(Screen.Track, Screen.Recording, Screen.History, Screen.Profile)
@@ -90,7 +88,6 @@ fun HajiRacingNavHost() {
             composable(Screen.History.route) { HistoryScreen(navController) }
             composable(Screen.Profile.route) { ProfileScreen(navController) }
             composable(Screen.Video.route) { VideoScreen(navController) }
-            composable(Screen.CreateTrack.route) { CreateTrackScreen(navController) }
         }
     }
 }
