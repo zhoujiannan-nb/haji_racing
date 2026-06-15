@@ -25,18 +25,19 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.haji.racing.ui.auth.LoginScreen
 import com.haji.racing.ui.history.HistoryScreen
 import com.haji.racing.ui.profile.ProfileScreen
 import com.haji.racing.ui.recording.RecordingScreen
+import com.haji.racing.ui.track.TrackCreateScreen
 import com.haji.racing.ui.track.TrackScreen
-import com.haji.racing.ui.video.VideoScreen
+import com.haji.racing.ui.trackdetail.TrackDetailScreen
 
 sealed class Screen(val route: String, val label: String, val icon: ImageVector, val iconSelected: ImageVector) {
     data object Track : Screen("track", "赛道", Icons.Outlined.Map, Icons.Filled.Map)
     data object Recording : Screen("recording", "记录", Icons.Outlined.Home, Icons.Filled.Home)
     data object History : Screen("history", "轨迹", Icons.Outlined.History, Icons.Filled.History)
     data object Profile : Screen("profile", "我的", Icons.Outlined.Person, Icons.Filled.Person)
-    data object Video : Screen("video", "视频", Icons.Outlined.History, Icons.Filled.History)
 }
 
 val bottomScreens = listOf(Screen.Track, Screen.Recording, Screen.History, Screen.Profile)
@@ -87,7 +88,9 @@ fun HajiRacingNavHost() {
             composable(Screen.Recording.route) { RecordingScreen(navController) }
             composable(Screen.History.route) { HistoryScreen(navController) }
             composable(Screen.Profile.route) { ProfileScreen(navController) }
-            composable(Screen.Video.route) { VideoScreen(navController) }
+            composable("login") { LoginScreen(navController) }
+            composable("track_create") { TrackCreateScreen(navController) }
+            composable("track_detail/{recordingUid}") { TrackDetailScreen(navController) }
         }
     }
 }

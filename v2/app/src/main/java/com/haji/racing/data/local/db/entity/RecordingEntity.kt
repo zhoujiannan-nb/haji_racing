@@ -7,14 +7,12 @@ import androidx.room.PrimaryKey
 data class RecordingEntity(
     @PrimaryKey val uid: String,
     val trackUid: String,
-    val mode: String, // "track" or "cruise"
+    val mode: String, // "track" or "free"
     val startTime: Long,
     val endTime: Long,
     val totalDistance: Double, // meters
     val avgSpeed: Double, // m/s
     val maxSpeed: Double, // m/s
-    val avgG: Double, // g
-    val maxG: Double, // g
     val userUid: String,
     val isSynced: Boolean = false,
     val createdAt: Long,

@@ -2,8 +2,8 @@ package com.haji.racing.ui.profile
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.haji.racing.data.remote.api.HajiApi
-import com.haji.racing.domain.model.User
+import com.haji.racing.data.repository.SyncResult
+import com.haji.racing.data.repository.SyncService
 import com.haji.racing.domain.repository.RecordingRepository
 import com.haji.racing.domain.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -15,7 +15,7 @@ import javax.inject.Inject
 class ProfileViewModel @Inject constructor(
     private val userRepository: UserRepository,
     private val recordingRepository: RecordingRepository,
-    private val api: HajiApi,
+    private val syncService: SyncService,
 ) : ViewModel() {
 
     val currentUser: StateFlow<User?> = userRepository.getCurrentUser()
@@ -27,6 +27,12 @@ class ProfileViewModel @Inject constructor(
     private val _isLoggedIn = MutableStateFlow(false)
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn
 
+    private val _isSyncing = MutableStateFlow(false)
+    val isSyncing: StateFlow<Boolean> = _isSyncing
+
+    private val _lastSyncResult = MutableStateFlow<SyncResult?>(null)
+    val lastSyncResult: StateFlow<SyncResult?> = _lastSyncResult
+
     init {
         viewModelScope.launch {
             currentUser.collect { user ->
@@ -34,20 +40,6 @@ class ProfileViewModel @Inject constructor(
                 if (user != null) {
                     _totalDistance.value = recordingRepository.getTotalDistanceForUser(user.uid)
                 }
-            }
-        }
-    }
-
-    fun login() {
-        viewModelScope.launch {
-            val response = api.login(mapOf("username" to "test", "password" to "test"))
-            response.data?.let { dto ->
-                val user = User(
-                    uid = dto.uid, nickname = dto.nickname, avatarUrl = dto.avatarUrl,
-                    totalDistance = dto.totalDistance, totalRecordings = dto.totalRecordings,
-                    isSynced = true, createdAt = dto.createdAt, updatedAt = dto.updatedAt,
-                )
-                userRepository.saveUser(user)
             }
         }
     }
@@ -62,6 +54,23 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch {
             currentUser.value?.let { user ->
                 userRepository.updateUser(user.copy(nickname = nickname, updatedAt = System.currentTimeMillis()))
+            }
+        }
+    }
+
+    fun sync() {
+        viewModelScope.launch {
+            _isSyncing.value = true
+            try {
+                _lastSyncResult.value = syncService.syncAll()
+            } catch (_: Exception) {
+                _lastSyncResult.value = SyncResult()
+            } finally {
+                _isSyncing.value = false
+                // 刷新总里程
+                currentUser.value?.let { user ->
+                    _totalDistance.value = recordingRepository.getTotalDistanceForUser(user.uid)
+                }
             }
         }
     }

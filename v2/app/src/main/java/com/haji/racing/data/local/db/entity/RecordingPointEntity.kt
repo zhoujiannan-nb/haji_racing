@@ -11,9 +11,5 @@ data class RecordingPointEntity(
     val lat: Double,
     val lng: Double,
     val speed: Double, // m/s
-    val accelerationX: Float, // m/s^2
-    val accelerationY: Float,
-    val accelerationZ: Float,
-    val gValue: Float, // combined G
     val distance: Double, // cumulative distance in meters
 )

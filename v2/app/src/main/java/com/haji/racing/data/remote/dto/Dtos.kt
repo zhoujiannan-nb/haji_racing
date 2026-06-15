@@ -6,18 +6,35 @@ data class ApiResponse<T>(
     val data: T? = null,
 )
 
+data class LoginRequest(
+    val account: String,
+    val password: String,
+)
+
+data class LoginResponse(
+    val token: String,
+    val uid: String,
+    val nickname: String,
+    val avatarUrl: String? = null,
+)
+
+data class RegisterRequest(
+    val account: String,
+    val password: String,
+    val nickname: String,
+    val email: String? = null,
+)
+
 data class TrackDto(
     val uid: String,
     val name: String,
+    val description: String? = null,
     val type: String,
     val startFencePoints: List<FencePointDto> = emptyList(),
     val endFencePoints: List<FencePointDto> = emptyList(),
-    val startDirectionFrom: FencePointDto? = null,
-    val startDirectionTo: FencePointDto? = null,
-    val endDirectionFrom: FencePointDto? = null,
-    val endDirectionTo: FencePointDto? = null,
     val totalDistance: Double,
     val creatorUid: String?,
+    val creatorName: String? = null,
     val createdAt: Long,
     val updatedAt: Long,
 )
@@ -36,16 +53,16 @@ data class RecordingDto(
     val totalDistance: Double,
     val avgSpeed: Double,
     val maxSpeed: Double,
-    val avgG: Double,
-    val maxG: Double,
     val userUid: String,
     val createdAt: Long,
 )
 
 data class UserDto(
     val uid: String,
+    val account: String? = null,
     val nickname: String,
     val avatarUrl: String?,
+    val token: String? = null,
     val totalDistance: Double,
     val totalRecordings: Int,
     val createdAt: Long,

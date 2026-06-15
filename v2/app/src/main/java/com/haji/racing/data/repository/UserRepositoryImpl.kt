@@ -30,14 +30,14 @@ class UserRepositoryImpl @Inject constructor(
         userDao.deleteUser(uid)
 
     private fun UserEntity.toDomain() = User(
-        uid = uid, nickname = nickname, avatarUrl = avatarUrl,
-        totalDistance = totalDistance, totalRecordings = totalRecordings,
+        uid = uid, account = account, nickname = nickname, avatarUrl = avatarUrl,
+        token = token, totalDistance = totalDistance, totalRecordings = totalRecordings,
         isSynced = isSynced, createdAt = createdAt, updatedAt = updatedAt,
     )
 
     private fun User.toEntity() = UserEntity(
-        uid = uid, nickname = nickname, avatarUrl = avatarUrl,
-        totalDistance = totalDistance, totalRecordings = totalRecordings,
+        uid = uid, account = account, nickname = nickname, avatarUrl = avatarUrl,
+        token = token, totalDistance = totalDistance, totalRecordings = totalRecordings,
         isSynced = isSynced, createdAt = createdAt, updatedAt = updatedAt,
     )
 }

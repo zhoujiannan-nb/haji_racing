@@ -18,7 +18,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.haji.racing.core.common.FormatUtils
 import com.haji.racing.core.common.TimeUtils
-import com.haji.racing.domain.model.Recording
 import com.haji.racing.domain.model.Track
 import com.haji.racing.service.RecordingService
 
@@ -31,12 +30,9 @@ fun RecordingScreen(
     val context = LocalContext.current
     val tracks by viewModel.tracks.collectAsState()
     val selectedTrack by viewModel.selectedTrack.collectAsState()
-    val selectedRefUid by viewModel.selectedRefRecordingUid.collectAsState()
-    val refRecordings by viewModel.refRecordings.collectAsState()
-    val recordingData by com.haji.racing.service.RecordingService.recordingData.collectAsState()
+    val recordingData by RecordingService.recordingData.collectAsState()
     var showTrackPicker by remember { mutableStateOf(false) }
-    var showModePicker by remember { mutableStateOf(false) }
-    var isCruiseMode by remember { mutableStateOf(false) }
+    var isFreeMode by remember { mutableStateOf(false) }
     var isRecording by remember { mutableStateOf(false) }
 
     LaunchedEffect(recordingData.state) {
@@ -47,7 +43,7 @@ fun RecordingScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text(if (isCruiseMode) "巡游模式" else "赛道记录") })
+            TopAppBar(title = { Text(if (isFreeMode) "自由跑" else "赛道记录") })
         }
     ) { padding ->
         Column(
@@ -70,29 +66,23 @@ fun RecordingScreen(
                     Text("停止记录")
                 }
             } else {
-                ModeSelector(isCruiseMode = isCruiseMode, onModeChange = { isCruiseMode = it })
+                ModeSelector(isFreeMode = isFreeMode, onModeChange = { isFreeMode = it })
                 Spacer(modifier = Modifier.height(16.dp))
 
-                if (!isCruiseMode) {
+                if (!isFreeMode) {
                     TrackSelector(
                         selectedTrack = selectedTrack,
                         onClick = { showTrackPicker = true },
                     )
                     Spacer(modifier = Modifier.height(16.dp))
-                    RefRecordingSelector(
-                        recordings = refRecordings,
-                        selectedUid = selectedRefUid,
-                        onSelect = { viewModel.selectRefRecording(it) },
-                    )
-                    Spacer(modifier = Modifier.height(24.dp))
                 }
 
                 Button(
                     onClick = {
-                        startRecording(context, selectedTrack, isCruiseMode, selectedRefUid)
+                        startRecording(context, selectedTrack, isFreeMode)
                         isRecording = true
                     },
-                    enabled = isCruiseMode || selectedTrack != null,
+                    enabled = isFreeMode || selectedTrack != null,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Icon(Icons.Default.PlayArrow, contentDescription = null)
@@ -116,21 +106,21 @@ fun RecordingScreen(
 }
 
 @Composable
-private fun ModeSelector(isCruiseMode: Boolean, onModeChange: (Boolean) -> Unit) {
+private fun ModeSelector(isFreeMode: Boolean, onModeChange: (Boolean) -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         FilterChip(
-            selected = !isCruiseMode,
+            selected = !isFreeMode,
             onClick = { onModeChange(false) },
             label = { Text("赛道模式") },
             modifier = Modifier.weight(1f),
         )
         FilterChip(
-            selected = isCruiseMode,
+            selected = isFreeMode,
             onClick = { onModeChange(true) },
-            label = { Text("巡游模式") },
+            label = { Text("自由跑") },
             modifier = Modifier.weight(1f),
         )
     }
@@ -162,34 +152,6 @@ private fun TrackSelector(selectedTrack: Track?, onClick: () -> Unit) {
 }
 
 @Composable
-private fun RefRecordingSelector(
-    recordings: List<Recording>,
-    selectedUid: String?,
-    onSelect: (String?) -> Unit,
-) {
-    if (recordings.isEmpty()) return
-
-    Text("对比参考轨迹", style = MaterialTheme.typography.labelLarge)
-    Spacer(modifier = Modifier.height(8.dp))
-
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        FilterChip(
-            selected = selectedUid == null,
-            onClick = { onSelect(null) },
-            label = { Text("无") },
-        )
-        recordings.take(3).forEach { rec ->
-            val label = TimeUtils.formatDuration(rec.endTime - rec.startTime)
-            FilterChip(
-                selected = selectedUid == rec.uid,
-                onClick = { onSelect(rec.uid) },
-                label = { Text(label) },
-            )
-        }
-    }
-}
-
-@Composable
 private fun RecordingStatusView(recordingData: com.haji.racing.service.RecordingData) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -212,17 +174,7 @@ private fun RecordingStatusView(recordingData: com.haji.racing.service.Recording
             ) {
                 StatItem("距离", FormatUtils.formatDistance(recordingData.currentDistance))
                 StatItem("速度", FormatUtils.formatSpeed(recordingData.currentSpeed))
-                StatItem("G值", FormatUtils.formatG(recordingData.currentG))
-            }
-
-            if (recordingData.timeDiffMs != 0L) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = "对比: ${FormatUtils.formatTimeDiff(recordingData.timeDiffMs)}",
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = if (recordingData.timeDiffMs < 0) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.error,
-                )
+                StatItem("最大", FormatUtils.formatSpeed(recordingData.maxSpeed))
             }
         }
     }
@@ -265,12 +217,11 @@ private fun TrackPickerDialog(
     )
 }
 
-private fun startRecording(context: Context, track: Track?, isCruise: Boolean, refUid: String?) {
+private fun startRecording(context: Context, track: Track?, isFree: Boolean) {
     val intent = Intent(context, RecordingService::class.java).apply {
         action = RecordingService.ACTION_START
-        putExtra(RecordingService.EXTRA_TRACK_UID, track?.uid ?: "cruise")
-        putExtra(RecordingService.EXTRA_MODE, if (isCruise) "cruise" else "track")
-        refUid?.let { putExtra(RecordingService.EXTRA_REF_RECORDING_UID, it) }
+        putExtra(RecordingService.EXTRA_TRACK_UID, track?.uid ?: "free")
+        putExtra(RecordingService.EXTRA_MODE, if (isFree) "free" else "track")
     }
     context.startForegroundService(intent)
 }

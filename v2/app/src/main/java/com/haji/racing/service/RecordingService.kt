@@ -5,20 +5,15 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Intent
-import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
 import com.haji.racing.MainActivity
 import com.haji.racing.R
 import com.haji.racing.core.common.DistanceUtils
-import com.haji.racing.core.common.TimeUtils
-import com.haji.racing.core.fusion.FusedPosition
-import com.haji.racing.core.fusion.PositionFusion
 import com.haji.racing.core.geofence.GeofenceDetector
 import com.haji.racing.core.gps.GpsPoint
 import com.haji.racing.core.gps.GpsTracker
-import com.haji.racing.core.sensor.AccelerometerManager
 import com.haji.racing.data.local.db.dao.RecordingDao
 import com.haji.racing.data.local.db.dao.RecordingPointDao
 import com.haji.racing.data.local.db.entity.RecordingEntity
@@ -42,11 +37,6 @@ data class RecordingData(
     val currentDistance: Double = 0.0,
     val currentSpeed: Double = 0.0,
     val maxSpeed: Double = 0.0,
-    val currentG: Float = 0f,
-    val maxG: Float = 0f,
-    val gSum: Float = 0f,
-    val gCount: Int = 0,
-    val timeDiffMs: Long = 0, // vs reference track
     val recordingUid: String? = null,
 )
 
@@ -54,7 +44,6 @@ data class RecordingData(
 class RecordingService : LifecycleService() {
 
     @Inject lateinit var gpsTracker: GpsTracker
-    @Inject lateinit var accelerometerManager: AccelerometerManager
     @Inject lateinit var recordingDao: RecordingDao
     @Inject lateinit var recordingPointDao: RecordingPointDao
 
@@ -65,29 +54,20 @@ class RecordingService : LifecycleService() {
         const val ACTION_STOP = "action_stop"
         const val EXTRA_TRACK_UID = "track_uid"
         const val EXTRA_MODE = "mode"
-        const val EXTRA_REF_RECORDING_UID = "ref_recording_uid"
 
         private val _recordingData = MutableStateFlow(RecordingData())
         val recordingData: StateFlow<RecordingData> = _recordingData
     }
 
-    private var positionFusion = PositionFusion()
     private var track: Track? = null
     private var mode: String = "track"
-    private var refRecordingUid: String? = null
     private var recordingUid: String = ""
     private var startTime: Long = 0
     private var lastGpsPoint: GpsPoint? = null
     private var totalDistance: Double = 0.0
     private var maxSpeed: Double = 0.0
-    private var maxG: Float = 0f
-    private var gSum: Float = 0f
-    private var gCount: Int = 0
-    private var isInitialized = false
     private var passedStart = false
-
-    private var refDistances: List<Double>? = null
-    private var refTimestamps: List<Long>? = null
+    private var lastRecordTime: Long = 0
 
     override fun onCreate() {
         super.onCreate()
@@ -108,28 +88,19 @@ class RecordingService : LifecycleService() {
     private fun startRecording(intent: Intent) {
         val trackUid = intent.getStringExtra(EXTRA_TRACK_UID) ?: return
         mode = intent.getStringExtra(EXTRA_MODE) ?: "track"
-        refRecordingUid = intent.getStringExtra(EXTRA_REF_RECORDING_UID)
         recordingUid = UUID.randomUUID().toString()
         startTime = System.currentTimeMillis()
         totalDistance = 0.0
         maxSpeed = 0.0
-        maxG = 0f
-        gSum = 0f
-        gCount = 0
         passedStart = false
-        isInitialized = false
-
-        positionFusion.reset()
+        lastRecordTime = 0
 
         _recordingData.value = RecordingData(state = RecordingState.WAITING, recordingUid = recordingUid)
 
         startForeground(NOTIFICATION_ID, createNotification("等待起跑..."))
 
-        loadReferenceRecording()
-
         lifecycleScope.launch {
             gpsTracker.startTracking()
-            accelerometerManager.startListening()
         }
 
         lifecycleScope.launch(Dispatchers.Default) {
@@ -137,61 +108,36 @@ class RecordingService : LifecycleService() {
                 handleGpsUpdate(gpsPoint)
             }
         }
-
-        lifecycleScope.launch(Dispatchers.Default) {
-            accelerometerManager.accelFlow.collect { accelData ->
-                handleAccelUpdate(
-                    floatArrayOf(accelData.x, accelData.y, accelData.z),
-                    accelData.timestamp
-                )
-            }
-        }
-    }
-
-    private fun loadReferenceRecording() {
-        if (refRecordingUid != null) {
-            lifecycleScope.launch {
-                val points = recordingPointDao.getPointsForRecordingSync(refRecordingUid!!)
-                if (points.isNotEmpty()) {
-                    refDistances = points.map { it.distance }
-                    refTimestamps = points.map { it.timestamp - points.first().timestamp }
-                }
-            }
-        }
     }
 
     private suspend fun handleGpsUpdate(gpsPoint: GpsPoint) {
-        if (!isInitialized) {
-            positionFusion.init(gpsPoint)
-            isInitialized = true
-        }
-
-        val fused = positionFusion.updateWithGps(gpsPoint)
         lastGpsPoint = gpsPoint
 
         when (_recordingData.value.state) {
             RecordingState.WAITING -> {
                 val shouldStart = if (mode == "track" && track != null) {
                     GeofenceDetector.isInsidePolygon(
-                        fused.lat, fused.lng,
+                        gpsPoint.lat, gpsPoint.lng,
                         track!!.startFencePoints
                     ) && gpsPoint.speed >= 4.17 // 15 km/h in m/s
                 } else {
-                    gpsPoint.speed >= 2.0 // any speed for cruise mode
+                    true // free mode starts immediately
                 }
 
                 if (shouldStart) {
                     passedStart = true
                     startTime = System.currentTimeMillis()
+                    lastRecordTime = startTime
                     _recordingData.value = _recordingData.value.copy(state = RecordingState.RECORDING)
                 }
             }
             RecordingState.RECORDING -> {
-                updateRecordingState(fused, gpsPoint)
+                updateRecordingState(gpsPoint)
+                recordPointIfNeeded(gpsPoint)
 
                 if (mode == "track" && track != null) {
                     val atEnd = GeofenceDetector.isInsidePolygon(
-                        fused.lat, fused.lng,
+                        gpsPoint.lat, gpsPoint.lng,
                         track!!.endFencePoints
                     )
                     if (atEnd && passedStart) {
@@ -203,43 +149,25 @@ class RecordingService : LifecycleService() {
         }
     }
 
-    private fun handleAccelUpdate(rawAccel: FloatArray, timestamp: Long) {
-        if (_recordingData.value.state != RecordingState.RECORDING) return
+    private fun recordPointIfNeeded(gpsPoint: GpsPoint) {
+        val now = System.currentTimeMillis()
+        val interval = if (mode == "free") 1000L else 100L // 1s for free, 100ms for track
 
-        val gValue = accelerometerManager.getGValue(rawAccel[0], rawAccel[1], rawAccel[2])
-        val fused = positionFusion.updateWithAccel(rawAccel, gValue, timestamp)
-
-        if (gValue > maxG) maxG = gValue
-        gSum += gValue
-        gCount++
-
-        val point = RecordingPointEntity(
-            recordingUid = recordingUid,
-            timestamp = timestamp,
-            lat = fused.lat,
-            lng = fused.lng,
-            speed = fused.speed,
-            accelerationX = fused.acceleration[0],
-            accelerationY = fused.acceleration[1],
-            accelerationZ = fused.acceleration[2],
-            gValue = gValue,
-            distance = totalDistance,
-        )
-
-        lifecycleScope.launch { recordingPointDao.insertPoint(point) }
-
-        val timeDiff = calculateTimeDiff(totalDistance, timestamp - startTime)
-
-        _recordingData.value = _recordingData.value.copy(
-            currentG = gValue,
-            maxG = maxG,
-            gSum = gSum,
-            gCount = gCount,
-            timeDiffMs = timeDiff,
-        )
+        if (now - lastRecordTime >= interval) {
+            lastRecordTime = now
+            val point = RecordingPointEntity(
+                recordingUid = recordingUid,
+                timestamp = now,
+                lat = gpsPoint.lat,
+                lng = gpsPoint.lng,
+                speed = gpsPoint.speed,
+                distance = totalDistance,
+            )
+            lifecycleScope.launch { recordingPointDao.insertPoint(point) }
+        }
     }
 
-    private fun updateRecordingState(fused: FusedPosition, gpsPoint: GpsPoint) {
+    private fun updateRecordingState(gpsPoint: GpsPoint) {
         val prev = lastGpsPoint
         if (prev != null) {
             totalDistance += DistanceUtils.haversine(prev.lat, prev.lng, gpsPoint.lat, gpsPoint.lng)
@@ -248,26 +176,13 @@ class RecordingService : LifecycleService() {
         if (gpsPoint.speed > maxSpeed) maxSpeed = gpsPoint.speed
 
         val elapsed = System.currentTimeMillis() - startTime
-        val timeDiff = calculateTimeDiff(totalDistance, elapsed)
 
         _recordingData.value = _recordingData.value.copy(
             elapsedMs = elapsed,
             currentDistance = totalDistance,
-            currentSpeed = fused.speed,
+            currentSpeed = gpsPoint.speed,
             maxSpeed = maxSpeed,
-            timeDiffMs = timeDiff,
         )
-    }
-
-    private fun calculateTimeDiff(currentDist: Double, elapsed: Long): Long {
-        val refDist = refDistances ?: return 0
-        val refTs = refTimestamps ?: return 0
-        if (refDist.isEmpty()) return 0
-
-        val refIdx = refDist.indexOfFirst { it >= currentDist }
-        if (refIdx < 0) return 0
-
-        return refTs[refIdx] - elapsed
     }
 
     private fun finishRecording() {
@@ -290,14 +205,12 @@ class RecordingService : LifecycleService() {
 
     private fun stopSensors() {
         gpsTracker.stopTracking()
-        accelerometerManager.stopListening()
     }
 
     private fun saveRecording() {
         val elapsed = _recordingData.value.elapsedMs
         val dist = _recordingData.value.currentDistance
         val avgSpeed = if (elapsed > 0) dist / (elapsed / 1000.0) else 0.0
-        val avgG = if (gCount > 0) gSum / gCount else 0f
 
         val entity = RecordingEntity(
             uid = recordingUid,
@@ -308,8 +221,6 @@ class RecordingService : LifecycleService() {
             totalDistance = dist,
             avgSpeed = avgSpeed,
             maxSpeed = maxSpeed,
-            avgG = avgG.toDouble(),
-            maxG = maxG.toDouble(),
             userUid = "",
             createdAt = System.currentTimeMillis(),
         )

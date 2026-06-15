@@ -63,8 +63,4 @@ class AccelerometerManager @Inject constructor(
             rawAccel[2] - gravity[2],
         )
     }
-
-    fun getGValue(x: Float, y: Float, z: Float): Float {
-        return kotlin.math.sqrt(x * x + y * y + z * z) / SensorManager.GRAVITY_EARTH
-    }
 }

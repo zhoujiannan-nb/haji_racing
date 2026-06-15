@@ -30,7 +30,7 @@ class RecordingRepositoryImpl @Inject constructor(
     override suspend fun getRecordingByUid(uid: String): Recording? {
         val entity = recordingDao.getRecordingByUid(uid) ?: return null
         val points = recordingPointDao.getPointsForRecordingSync(uid).map {
-            RecordingPoint(it.timestamp, it.lat, it.lng, it.speed, it.accelerationX, it.accelerationY, it.accelerationZ, it.gValue, it.distance)
+            RecordingPoint(it.timestamp, it.lat, it.lng, it.speed, it.distance)
         }
         return entity.toDomain().copy(points = points)
     }
@@ -41,8 +41,7 @@ class RecordingRepositoryImpl @Inject constructor(
             RecordingPointEntity(
                 recordingUid = recording.uid, timestamp = point.timestamp,
                 lat = point.lat, lng = point.lng, speed = point.speed,
-                accelerationX = point.accelerationX, accelerationY = point.accelerationY, accelerationZ = point.accelerationZ,
-                gValue = point.gValue, distance = point.distance,
+                distance = point.distance,
             )
         }
         if (points.isNotEmpty()) recordingPointDao.insertPoints(points)
@@ -59,14 +58,14 @@ class RecordingRepositoryImpl @Inject constructor(
     private fun RecordingEntity.toDomain() = Recording(
         uid = uid, trackUid = trackUid, mode = mode,
         startTime = startTime, endTime = endTime, totalDistance = totalDistance,
-        avgSpeed = avgSpeed, maxSpeed = maxSpeed, avgG = avgG, maxG = maxG,
+        avgSpeed = avgSpeed, maxSpeed = maxSpeed,
         userUid = userUid, isSynced = isSynced, createdAt = createdAt,
     )
 
     private fun Recording.toEntity() = RecordingEntity(
         uid = uid, trackUid = trackUid, mode = mode,
         startTime = startTime, endTime = endTime, totalDistance = totalDistance,
-        avgSpeed = avgSpeed, maxSpeed = maxSpeed, avgG = avgG, maxG = maxG,
+        avgSpeed = avgSpeed, maxSpeed = maxSpeed,
         userUid = userUid, isSynced = isSynced, createdAt = createdAt,
     )
 }

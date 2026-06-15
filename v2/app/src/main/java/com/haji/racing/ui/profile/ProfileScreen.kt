@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.haji.racing.core.common.FormatUtils
+import com.haji.racing.data.repository.SyncResult
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -23,6 +24,8 @@ fun ProfileScreen(
     val user by viewModel.currentUser.collectAsState()
     val totalDistance by viewModel.totalDistance.collectAsState()
     val isLoggedIn by viewModel.isLoggedIn.collectAsState()
+    val isSyncing by viewModel.isSyncing.collectAsState()
+    val lastSyncResult by viewModel.lastSyncResult.collectAsState()
     var showEditDialog by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -33,15 +36,18 @@ fun ProfileScreen(
         if (!isLoggedIn) {
             LoginView(
                 modifier = Modifier.padding(padding),
-                onLogin = { viewModel.login() },
+                onLogin = { navController.navigate("login") },
             )
         } else {
             ProfileView(
                 modifier = Modifier.padding(padding),
                 user = user,
                 totalDistance = totalDistance,
+                isSyncing = isSyncing,
+                lastSyncResult = lastSyncResult,
                 onEdit = { showEditDialog = true },
                 onLogout = { viewModel.logout() },
+                onSync = { viewModel.sync() },
             )
         }
     }
@@ -91,8 +97,11 @@ private fun ProfileView(
     modifier: Modifier = Modifier,
     user: com.haji.racing.domain.model.User?,
     totalDistance: Double,
+    isSyncing: Boolean,
+    lastSyncResult: SyncResult?,
     onEdit: () -> Unit,
     onLogout: () -> Unit,
+    onSync: () -> Unit,
 ) {
     Column(
         modifier = modifier.fillMaxSize().padding(24.dp),
@@ -142,6 +151,37 @@ private fun ProfileView(
             Icon(Icons.Default.Edit, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
             Text("修改资料")
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Button(
+            onClick = onSync,
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !isSyncing,
+        ) {
+            if (isSyncing) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(16.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("同步中...")
+            } else {
+                Icon(Icons.Default.Refresh, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("同步数据")
+            }
+        }
+
+        lastSyncResult?.let { result ->
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "上传: ${result.tracksUploaded}赛道 ${result.recordingsUploaded}轨迹 | 下载: ${result.tracksDownloaded}赛道 ${result.recordingsDownloaded}轨迹",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
 
         Spacer(modifier = Modifier.weight(1f))

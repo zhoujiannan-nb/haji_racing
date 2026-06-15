@@ -50,8 +50,6 @@ object FormatUtils {
 
     fun formatSpeed(mps: Double): String = "%.1f km/h".format(mps * 3.6)
 
-    fun formatG(gValue: Float): String = "%.2f G".format(gValue)
-
     fun formatTimeDiff(diffMs: Long): String {
         val seconds = diffMs / 1000.0
         return if (seconds >= 0) "+%.1fs".format(seconds) else "%.1fs".format(seconds)
