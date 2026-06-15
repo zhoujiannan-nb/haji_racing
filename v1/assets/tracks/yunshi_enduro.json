@@ -1,0 +1,112 @@
+{
+  "name": "云石耐力赛",
+  "description": "云石耐力赛布局,全长8170m,丰富的高低速弯,大直道,大起伏,应有尽有，增加了坑洼路面和减速带的减速规则区,相对于冲刺赛,对车辆更友好",
+  "length": 8170,
+  "startPolygon": [
+    {
+      "latitude": 30.023377,
+      "longitude": 120.135687
+    },
+    {
+      "latitude": 30.022161,
+      "longitude": 120.136331
+    },
+    {
+      "latitude": 30.022448,
+      "longitude": 120.137384
+    },
+    {
+      "latitude": 30.023599,
+      "longitude": 120.136483
+    }
+  ],
+  "endPolygon": [
+    {
+      "latitude": 29.991196,
+      "longitude": 120.122371
+    },
+    {
+      "latitude": 29.990944,
+      "longitude": 120.122099
+    },
+    {
+      "latitude": 29.990749,
+      "longitude": 120.122712
+    },
+    {
+      "latitude": 29.991198,
+      "longitude": 120.12275
+    }
+  ],
+  "thumbnailUrl": null,
+  "publishedAt": "2026-04-14T08:48:59.194Z",
+  "createdAt": "2026-04-14T08:48:59.194Z",
+  "checkPoints": [
+    {
+      "name": "减速带减速区",
+      "sequence": 1,
+      "polygon": [
+        {
+          "latitude": 30.018538,
+          "longitude": 120.139401
+        },
+        {
+          "latitude": 30.017498,
+          "longitude": 120.139757
+        },
+        {
+          "latitude": 30.017574,
+          "longitude": 120.140278
+        },
+        {
+          "latitude": 30.018656,
+          "longitude": 120.13993
+        }
+      ],
+      "description": "",
+      "rules": [
+        {
+          "ruleType": "speed_limit",
+          "parameters": {
+            "max_speed": 40,
+            "min_speed": 0
+          },
+          "description": "未命名规则"
+        }
+      ]
+    },
+    {
+      "name": "坑洼",
+      "sequence": 2,
+      "polygon": [
+        {
+          "latitude": 29.99124,
+          "longitude": 120.126412
+        },
+        {
+          "latitude": 29.99075,
+          "longitude": 120.126315
+        },
+        {
+          "latitude": 29.99065,
+          "longitude": 120.126689
+        },
+        {
+          "latitude": 29.991181,
+          "longitude": 120.126801
+        }
+      ],
+      "description": "",
+      "rules": [
+        {
+          "ruleType": "speed_limit",
+          "parameters": {
+            "max_speed": 40,
+            "min_speed": 0
+          },
+          "description": "未命名规则"
+        }
+      ]
+    }
+  ]
+}

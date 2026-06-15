@@ -1,0 +1,45 @@
+{
+  "name": "云石冲刺赛",
+  "description": "云石赛道,全长8170m,丰富的高低速弯,大直道,大起伏,应有尽有。对车辆和驾驶技术都是严苛的考验",
+  "length": 8170,
+  "startPolygon": [
+    {
+      "latitude": 30.023497,
+      "longitude": 120.135616
+    },
+    {
+      "latitude": 30.022323,
+      "longitude": 120.136437
+    },
+    {
+      "latitude": 30.022503,
+      "longitude": 120.137257
+    },
+    {
+      "latitude": 30.023674,
+      "longitude": 120.136418
+    }
+  ],
+  "endPolygon": [
+    {
+      "latitude": 29.991252,
+      "longitude": 120.122319
+    },
+    {
+      "latitude": 29.991011,
+      "longitude": 120.122004
+    },
+    {
+      "latitude": 29.990705,
+      "longitude": 120.122725
+    },
+    {
+      "latitude": 29.991243,
+      "longitude": 120.1228
+    }
+  ],
+  "thumbnailUrl": null,
+  "publishedAt": "2026-04-14T08:42:20.651Z",
+  "createdAt": "2026-04-14T08:42:20.652Z",
+  "checkPoints": []
+}

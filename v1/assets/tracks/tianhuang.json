@@ -1,0 +1,73 @@
+{
+  "name": "天荒坪国家级赛道",
+  "description": "天荒坪国家级赛道",
+  "length": 10000,
+  "startPolygon": [
+    {
+      "latitude": 30.472607,
+      "longitude": 119.610399
+    },
+    {
+      "latitude": 30.473016,
+      "longitude": 119.610475
+    },
+    {
+      "latitude": 30.473271,
+      "longitude": 119.610741
+    },
+    {
+      "latitude": 30.473606,
+      "longitude": 119.610858
+    },
+    {
+      "latitude": 30.473917,
+      "longitude": 119.610916
+    },
+    {
+      "latitude": 30.474168,
+      "longitude": 119.610939
+    },
+    {
+      "latitude": 30.474079,
+      "longitude": 119.611237
+    },
+    {
+      "latitude": 30.47371,
+      "longitude": 119.611221
+    },
+    {
+      "latitude": 30.473293,
+      "longitude": 119.611088
+    },
+    {
+      "latitude": 30.472966,
+      "longitude": 119.610913
+    },
+    {
+      "latitude": 30.472784,
+      "longitude": 119.610773
+    }
+  ],
+  "endPolygon": [
+    {
+      "latitude": 30.460871,
+      "longitude": 119.593761
+    },
+    {
+      "latitude": 30.460834,
+      "longitude": 119.593474
+    },
+    {
+      "latitude": 30.461164,
+      "longitude": 119.59354
+    },
+    {
+      "latitude": 30.461182,
+      "longitude": 119.59379
+    }
+  ],
+  "thumbnailUrl": null,
+  "publishedAt": "2026-04-14T09:04:49.879Z",
+  "createdAt": "2026-04-14T09:04:49.879Z",
+  "checkPoints": []
+}
