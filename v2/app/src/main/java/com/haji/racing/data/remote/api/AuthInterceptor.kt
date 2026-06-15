@@ -17,8 +17,9 @@ class AuthInterceptor @Inject constructor(
         val request = chain.request()
 
         // 不需要Token的接口
-        if (request.url.encodedPath.contains("auth/login") ||
-            request.url.encodedPath.contains("auth/register")) {
+        val url = request.url()
+        if (url.encodedPath().contains("auth/login") ||
+            url.encodedPath().contains("auth/register")) {
             return chain.proceed(request)
         }
 

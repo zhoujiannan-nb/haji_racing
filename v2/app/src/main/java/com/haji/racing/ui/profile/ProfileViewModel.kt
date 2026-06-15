@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.haji.racing.data.repository.SyncResult
 import com.haji.racing.data.repository.SyncService
+import com.haji.racing.domain.model.User
 import com.haji.racing.domain.repository.RecordingRepository
 import com.haji.racing.domain.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel

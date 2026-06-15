@@ -52,15 +52,18 @@ fun ProfileScreen(
         }
     }
 
-    if (showEditDialog && user != null) {
-        EditProfileDialog(
-            currentNickname = user!!.nickname,
-            onSave = { nickname ->
-                viewModel.updateNickname(nickname)
-                showEditDialog = false
-            },
-            onDismiss = { showEditDialog = false },
-        )
+    if (showEditDialog) {
+        val currentUser = user
+        if (currentUser != null) {
+            EditProfileDialog(
+                currentNickname = currentUser.nickname,
+                onSave = { nickname ->
+                    viewModel.updateNickname(nickname)
+                    showEditDialog = false
+                },
+                onDismiss = { showEditDialog = false },
+            )
+        }
     }
 }
 

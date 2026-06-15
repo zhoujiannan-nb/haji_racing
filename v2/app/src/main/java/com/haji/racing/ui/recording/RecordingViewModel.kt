@@ -6,6 +6,7 @@ import com.haji.racing.domain.model.Track
 import com.haji.racing.domain.repository.TrackRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel

@@ -194,9 +194,10 @@ class RecordingService : LifecycleService() {
     }
 
     private fun stopRecording() {
+        val wasRecording = _recordingData.value.state == RecordingState.RECORDING
         _recordingData.value = _recordingData.value.copy(state = RecordingState.FINISHED)
         stopSensors()
-        if (_recordingData.value.state == RecordingState.RECORDING) {
+        if (wasRecording) {
             saveRecording()
         }
         stopForeground(STOP_FOREGROUND_REMOVE)

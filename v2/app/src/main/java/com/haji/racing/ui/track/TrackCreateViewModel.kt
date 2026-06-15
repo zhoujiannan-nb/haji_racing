@@ -29,6 +29,7 @@ class TrackCreateViewModel @Inject constructor(
         endFencePoints: List<FencePoint>,
     ) {
         viewModelScope.launch {
+            val now = System.currentTimeMillis()
             val track = Track(
                 uid = UUID.randomUUID().toString(),
                 name = name,
@@ -38,6 +39,10 @@ class TrackCreateViewModel @Inject constructor(
                 endFencePoints = endFencePoints,
                 totalDistance = 0.0,
                 type = "user",
+                creatorUid = null,
+                isSynced = false,
+                createdAt = now,
+                updatedAt = now,
             )
             trackRepository.saveTrack(track)
             _isSaved.value = true
