@@ -182,9 +182,17 @@ class RecordingService : LifecycleService() {
                 updateData { it.copy(inStartZone = false, inEndZone = false) }
             }
         } else {
-            // 自由模式（或赛道不存在时降级为自由）
+            // 自由模式（或赛道模式但无赛道 → 降级为自由）
+            if (mode == MODE_TRACK) mode = MODE_FREE
             track = null
             trackLoaded = true
+            _recordingData.value = _recordingData.value.copy(
+                trackUid = "",
+                mode = mode,
+                inStartZone = false,
+                inEndZone = false,
+                distanceToStart = null,
+            )
             startTiming()
         }
 

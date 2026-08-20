@@ -175,6 +175,7 @@ fun HomeScreen(
             if (mode == 0) {
                 TrackSelectCard(
                     selected = selectedTrack,
+                    trackCount = allTracks.size,
                     onClick = { showTrackPicker = true },
                     onCreate = { navController.navigate(Routes.TRACK_CREATE) },
                 )
@@ -289,26 +290,29 @@ private fun ModeCard(mode: Int, onModeChange: (Int) -> Unit) {
 @Composable
 private fun TrackSelectCard(
     selected: Track?,
+    trackCount: Int,
     onClick: () -> Unit,
     onCreate: () -> Unit,
 ) {
     if (selected == null) {
-        RacingCard(onClick = onCreate) {
+        // 已有赛道但尚未选择 → 打开选择器；完全无赛道 → 引导创建
+        val isPicker = trackCount > 0
+        RacingCard(onClick = if (isPicker) onClick else onCreate) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    imageVector = Icons.Filled.Add,
+                    imageVector = if (isPicker) Icons.Filled.Route else Icons.Filled.Add,
                     contentDescription = null,
                     tint = RacingPrimary,
                 )
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
-                        text = "创建你的第一条赛道",
+                        text = if (isPicker) "选择一条赛道" else "创建你的第一条赛道",
                         style = MaterialTheme.typography.titleMedium,
                         color = TextPrimary,
                     )
                     Text(
-                        text = "在地图上画起点 / 终点围栏，立即可用",
+                        text = if (isPicker) "共 $trackCount 条自定义赛道" else "在地图上画起点 / 终点围栏，立即可用",
                         style = MaterialTheme.typography.bodySmall,
                         color = TextSecondary,
                     )

@@ -1,7 +1,8 @@
 package com.haji.racing.core.gps
 
-import android.annotation.SuppressLint
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
@@ -48,9 +49,11 @@ class GpsTracker @Inject constructor(
 
     private var isTracking = false
 
-    @SuppressLint("MissingPermission")
     fun startTracking() {
         if (isTracking) return
+        if (context.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED
+        ) return
         if (!locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) return
         locationManager.requestLocationUpdates(
             LocationManager.GPS_PROVIDER,

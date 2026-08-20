@@ -94,6 +94,11 @@ fun TrackCreateScreen(
 
     val canSave = startPoints.size >= 3 && endPoints.size >= 3
 
+    fun addFencePoint(latLng: com.amap.api.maps.model.LatLng) {
+        val point = FencePoint(latLng.latitude, latLng.longitude)
+        if (editingZone == 0) startPoints = startPoints + point else endPoints = endPoints + point
+    }
+
     // 地图就绪后重绘围栏
     LaunchedEffect(startPoints, endPoints, mapReady) {
         if (mapReady) {
@@ -113,10 +118,8 @@ fun TrackCreateScreen(
                 // 初始视角：杭州（示例区域），用户可拖动
                 MapFences.moveTo(aMap, 30.2421, 120.1536, 13f)
             },
-            onMapClick = { latLng ->
-                val point = FencePoint(latLng.latitude, latLng.longitude)
-                if (editingZone == 0) startPoints = startPoints + point else endPoints = endPoints + point
-            },
+            onMapClick = { latLng -> addFencePoint(latLng) },
+            onMapLongClick = { latLng -> addFencePoint(latLng) },
         )
 
         // ===== 顶部栏 =====

@@ -17,6 +17,8 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // AMap SDK mirror (maven.amap.com is unreachable from this network)
+        maven { url = uri("https://maven.aliyun.com/repository/public") }
     }
 }
 

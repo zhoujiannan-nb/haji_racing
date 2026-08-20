@@ -17,3 +17,8 @@ local.properties
 # Kotlin/Android
 .DS_Store
 *.apk.idsig
+
+# adb test artifacts
+/ui_*.xml
+/test_*.png
+/sdcard_*

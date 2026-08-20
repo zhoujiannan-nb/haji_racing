@@ -8,7 +8,6 @@ import com.haji.racing.data.local.datastore.AppPreferences
 import com.haji.racing.domain.model.Track
 import com.haji.racing.domain.repository.TrackRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -29,7 +28,6 @@ class HomeViewModel @Inject constructor(
     private val _mode = MutableStateFlow(0)
     val mode: StateFlow<Int> = _mode.asStateFlow()
 
-    val tracks: Flow<List<Track>> = trackRepository.getAllTracks()
     val allTracks: StateFlow<List<Track>> = trackRepository.getAllTracks()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 

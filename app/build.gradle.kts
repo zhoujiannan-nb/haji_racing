@@ -92,7 +92,8 @@ dependencies {
     implementation("androidx.datastore:datastore-preferences:1.1.1")
 
     // Gaode Map SDK (3dmap includes location functionality)
-    implementation("com.amap.api:3dmap:9.5.0")
+    // 10.0.600: 9.x has a native heap-corruption (MTE) crash on Android 15/16
+    implementation("com.amap.api:3dmap:10.0.600")
 
     // Accompanist (permissions)
     implementation("com.google.accompanist:accompanist-permissions:0.36.0")
