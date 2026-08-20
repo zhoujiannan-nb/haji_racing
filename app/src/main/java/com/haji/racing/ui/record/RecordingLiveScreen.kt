@@ -358,6 +358,7 @@ private fun LiveMap(
     isFree: Boolean,
     route: List<com.haji.racing.core.gps.GpsPoint>,
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var mapReady by remember { mutableStateOf(false) }
     var liveLine by remember { mutableStateOf<Polyline?>(null) }
     var liveMarker by remember { mutableStateOf<Marker?>(null) }
@@ -380,7 +381,7 @@ private fun LiveMap(
                 if (mapReady) return@AmapView
                 mapReady = true
                 if (track != null) {
-                    MapFences.drawTrackFences(aMap, track)
+                    MapFences.drawTrackFences(context, aMap, track)
                     MapFences.fitToFences(aMap, track)
                 } else {
                     MapFences.moveTo(aMap, 30.2421, 120.1536, 14f)

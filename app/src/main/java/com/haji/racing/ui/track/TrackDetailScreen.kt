@@ -170,7 +170,7 @@ fun TrackDetailScreen(
                         if (mapReady) return@AmapView
                         mapReady = true
                         mapRef = aMap
-                        MapFences.drawTrackFences(aMap, current)
+                        MapFences.drawTrackFences(context, aMap, current)
                         MapFences.fitToFences(aMap, current)
                     },
                 )

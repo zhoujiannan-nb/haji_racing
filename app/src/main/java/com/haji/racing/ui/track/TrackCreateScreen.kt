@@ -100,10 +100,11 @@ fun TrackCreateScreen(
     }
 
     // 地图就绪后重绘围栏
+    val context = androidx.compose.ui.platform.LocalContext.current
     LaunchedEffect(startPoints, endPoints, mapReady) {
         if (mapReady) {
             val aMap = mapRef ?: return@LaunchedEffect
-            MapFences.drawZones(aMap, startPoints, endPoints)
+            MapFences.drawZones(context, aMap, startPoints, endPoints)
         }
     }
 
